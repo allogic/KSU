@@ -30,6 +30,12 @@
     <ClCompile Include="proc.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="socket.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="ioctl.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="undoc.h">
@@ -39,6 +45,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="proc.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="socket.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ioctl.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

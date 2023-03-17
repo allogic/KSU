@@ -1,0 +1,28 @@
+#ifndef IOCTL_H
+#define IOCTL_H
+
+#include <ntddk.h>
+
+#define IOCTRL_SCAN_PROCESS_PHYSICAL_PAGES CTL_CODE(FILE_DEVICE_UNKNOWN, 0x0100, METHOD_BUFFERED, FILE_SPECIAL_ACCESS)
+
+NTSTATUS
+OnIrpDflt(
+  PDEVICE_OBJECT Device,
+  PIRP Irp);
+
+NTSTATUS
+OnIrpCreate(
+  PDEVICE_OBJECT Device,
+  PIRP Irp);
+
+NTSTATUS
+OnIrpCtrl(
+  PDEVICE_OBJECT Device,
+  PIRP Irp);
+
+NTSTATUS
+OnIrpClose(
+  PDEVICE_OBJECT Device,
+  PIRP Irp);
+
+#endif

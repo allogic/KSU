@@ -164,6 +164,9 @@
       <TimeStamp>
       </TimeStamp>
     </Inf>
+    <Link>
+      <AdditionalDependencies>Netio.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <DriverSign>
@@ -177,6 +180,9 @@
       <TimeStamp>
       </TimeStamp>
     </Inf>
+    <Link>
+      <AdditionalDependencies>Netio.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM'">
     <DriverSign>
@@ -205,12 +211,16 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="ioctl.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="proc.c" />
+    <ClCompile Include="socket.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ia32.h" />
+    <ClInclude Include="ioctl.h" />
     <ClInclude Include="proc.h" />
+    <ClInclude Include="socket.h" />
     <ClInclude Include="undoc.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
