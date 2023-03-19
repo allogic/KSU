@@ -19,7 +19,7 @@ NbIteratePage(
   }
   else
   {
-    LOG("Invalid page\n");
+    //LOG("Invalid page\n");
   }
 }
 
@@ -51,7 +51,7 @@ NbIteratePageTable(
   }
   else
   {
-    LOG("Invalid page table\n");
+    //LOG("Invalid page table\n");
   }
 }
 
@@ -83,7 +83,7 @@ NbIteratePageDirectoryTable(
   }
   else
   {
-    LOG("Invalid page directory table\n");
+    //LOG("Invalid page directory table\n");
   }
 }
 
@@ -107,7 +107,7 @@ NbIteratePageDirectoryPointerTable(
   }
   else
   {
-    LOG("Invalid page directory pointer table\n");
+    //LOG("Invalid page directory pointer table\n");
   }
 }
 
@@ -131,6 +131,6 @@ NbIteratePageMapLevel4Table(
   }
   else
   {
-    LOG("Invalid page map level 4 table\n");
+    //LOG("Invalid page map level 4 table\n");
   }
 }

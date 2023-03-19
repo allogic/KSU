@@ -5,6 +5,7 @@
 #include "intercom.h"
 #include "pagewalk.h"
 #include "except.h"
+#include "scanner.h"
 
 static BOOL sDriverIsShuttingDown = FALSE;
 static KEVENT sTcpServerStoppedEvent = { 0 };
@@ -185,6 +186,9 @@ DriverEntry(
   // Get physical memory ranges
   gPhysicalMemoryRange = MmGetPhysicalMemoryRanges();
   gPhysicalMemoryRangeCount = NbGetPhysicalMemoryRangeCount();
+
+  // Initialize memory scanner
+  NbInitializeScanner();
 
   // Create TCP listen thread
   return PsCreateSystemThread(&sTcpServerThreadHandle, THREAD_ALL_ACCESS, 0, 0, 0, NbTcpServerThread, 0);
