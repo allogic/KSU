@@ -14,7 +14,7 @@ NbIteratePage(
   {
     if (NbIsInPhysicalMemoryRange(Address))
     {
-      NbArrayOfBytesScan(page, 0X1000, Bytes, NumberOfBytes);
+      NbArrayOfBytesScan((PCHAR)page, 0X1000, Bytes, NumberOfBytes);
     }
   }
   else
@@ -35,7 +35,7 @@ NbIteratePageTable(
   {
     if (LargePage)
     {
-      NbArrayOfBytesScan(pageTable, 0X1000000, Bytes, NumberOfBytes);
+      NbArrayOfBytesScan((PCHAR)pageTable, 0X1000000, Bytes, NumberOfBytes);
     }
     else
     {
@@ -67,7 +67,7 @@ NbIteratePageDirectoryTable(
   {
     if (LargePage)
     {
-      NbArrayOfBytesScan(pageDirectoryTable, 0X40000000, Bytes, NumberOfBytes);
+      NbArrayOfBytesScan((PCHAR)pageDirectoryTable, 0X40000000, Bytes, NumberOfBytes);
     }
     else
     {

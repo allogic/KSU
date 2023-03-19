@@ -8,7 +8,7 @@ NbResetScanList();
 
 VOID
 NbArrayOfBytesScan(
-  PVOID Address,
+  PCHAR Address,
   UINT32 Length,
   LPCSTR Bytes,
   UINT32 NumberOfBytes);
