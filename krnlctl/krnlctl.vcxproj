@@ -21,8 +21,8 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
-    <ProjectGuid>{0c30adb8-6428-469d-859d-47969de81588}</ProjectGuid>
-    <RootNamespace>interface</RootNamespace>
+    <ProjectGuid>{53edbdea-c536-4d50-b8e1-a7f4818dd986}</ProjectGuid>
+    <RootNamespace>krnlctl</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
@@ -43,14 +43,14 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <PlatformToolset>v142</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>NotSet</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -141,12 +141,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="main.c" />
-    <ClCompile Include="socket.c" />
+    <ClInclude Include="core.h" />
+    <ClInclude Include="except.h" />
+    <ClInclude Include="intercom.h" />
+    <ClInclude Include="socket.h" />
+    <ClInclude Include="tokenizer.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="ioctl.h" />
-    <ClInclude Include="socket.h" />
+    <ClCompile Include="except.c" />
+    <ClCompile Include="main.c" />
+    <ClCompile Include="socket.c" />
+    <ClCompile Include="tokenizer.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

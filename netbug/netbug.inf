@@ -1,0 +1,26 @@
+[Version]
+Signature="$WINDOWS NT$"
+Class=System
+ClassGuid={4d36e97d-e325-11ce-bfc1-08002be10318}
+Provider=%ManufacturerName%
+CatalogFile=netbug.cat
+DriverVer=03/18/2023
+PnpLockdown=1
+
+[DestinationDirs]
+DefaultDestDir=12
+netbug_Device_CoInstaller_CopyFiles=11
+
+[SourceDisksNames]
+1=%DiskName%,,,""
+
+[SourceDisksFiles]
+netbug.sys=1,,
+WdfCoInstaller$KMDFCOINSTALLERVERSION$.dll=1
+
+[Strings]
+SPSVCINST_ASSOCSERVICE=0x00000002
+ManufacturerName="netbug"
+DiskName="netbug"
+netbug.DeviceDesc="netbug"
+netbug.SVCDESC="netbug"

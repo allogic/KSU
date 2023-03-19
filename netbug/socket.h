@@ -1,32 +1,58 @@
 #ifndef SOCKET_H
 #define SOCKET_H
 
-#include <ntddk.h>
-#include <wsk.h>
-
-#define HTONS(N) (((((UINT16)(N) & 0xFF)) << 8) | (((UINT16)(N) & 0xFF00) >> 8))
+#include "core.h"
 
 typedef struct _KSOCKET KSOCKET, * PKSOCKET;
 
+typedef struct _KSOCKET_ASYNC_CONTEXT
+{
+  KEVENT CompletionEvent;
+  PIRP Irp;
+} KSOCKET_ASYNC_CONTEXT, * PKSOCKET_ASYNC_CONTEXT;
+
 NTSTATUS
-WskInitialize();
+NbAsyncContextAllocate(
+  PKSOCKET_ASYNC_CONTEXT AsyncContext);
 
 VOID
-WskDestroy();
+NbAsyncContextFree(
+  PKSOCKET_ASYNC_CONTEXT AsyncContext);
+
+VOID
+NbAsyncContextReset(
+  PKSOCKET_ASYNC_CONTEXT AsyncContext);
 
 NTSTATUS
-WskGetAddrInfo(
+NbAsyncContextCompletionRoutine(
+  PDEVICE_OBJECT	DeviceObject,
+  PIRP Irp,
+  PKEVENT CompletionEvent);
+
+NTSTATUS
+NbAsyncContextWaitForCompletion(
+  PKSOCKET_ASYNC_CONTEXT AsyncContext,
+  PNTSTATUS Status);
+
+NTSTATUS
+NbSocketInitialize();
+
+VOID
+NbSocketDeinitialize();
+
+NTSTATUS
+NbGetAddrInfo(
   PUNICODE_STRING NodeName,
   PUNICODE_STRING ServiceName,
   PADDRINFOEXW Hints,
   PADDRINFOEXW* Result);
 
 VOID
-WskFreeAddrInfo(
-  PADDRINFOEXW AddrInfo);
+NbFreeAddrInfo(
+  PADDRINFOEXW AddressInfo);
 
 NTSTATUS
-WskCreateSocket(
+NbCreateSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
@@ -34,49 +60,49 @@ WskCreateSocket(
   UINT32 Flags);
 
 NTSTATUS
-WskCreateConnectionSocket(
+NbCreateConnectionSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
   UINT32 Protocol);
 
 NTSTATUS
-WskCreateListenSocket(
+NbCreateListenSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
   UINT32 Protocol);
 
 NTSTATUS
-WskCreateDatagramSocket(
+NbCreateDatagramSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
   UINT32 Protocol);
 
 NTSTATUS
-WskCloseSocket(
+NbCloseSocket(
   PKSOCKET Socket);
 
 NTSTATUS
-WskBind(
+NbBind(
   PKSOCKET Socket,
   PSOCKADDR LocalAddress);
 
 NTSTATUS
-WskAccept(
+NbAccept(
   PKSOCKET Socket,
   PKSOCKET* NewSocket,
   PSOCKADDR LocalAddress,
   PSOCKADDR RemoteAddress);
 
 NTSTATUS
-WskConnect(
+NbConnect(
   PKSOCKET Socket,
   PSOCKADDR RemoteAddress);
 
 NTSTATUS
-WskSendRecv(
+NbSendRecv(
   PKSOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,
@@ -84,14 +110,14 @@ WskSendRecv(
   BOOLEAN Send);
 
 NTSTATUS
-WskSend(
+NbSend(
   PKSOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,
   UINT32 Flags);
 
 NTSTATUS
-WskRecv(
+NbRecv(
   PKSOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,
