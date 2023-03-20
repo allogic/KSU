@@ -3,16 +3,24 @@
 
 #include "core.h"
 
+///////////////////////////////////////////////////////////////
+// Public Types
+///////////////////////////////////////////////////////////////
+
 typedef struct _ASOCKET ASOCKET, * PASOCKET;
 
+///////////////////////////////////////////////////////////////
+// Public API
+///////////////////////////////////////////////////////////////
+
 INT32
-KcSocketInitialize();
+UmInitializeWsa();
 
 VOID
-KcSocketDeinitialize();
+UmDeinitializeWsa();
 
 INT32
-KcGetAddrInfo(
+UmGetAddrInfo(
   PCSTR Address,
   PCSTR Port,
   ADDRESS_FAMILY AddressFamily,
@@ -21,35 +29,35 @@ KcGetAddrInfo(
   PADDRINFOA* AddressInfo);
 
 VOID
-KcFreeAddrInfo(
+UmFreeAddrInfo(
   PADDRINFOA AddressInfo);
 
 INT32
-KcCreateSocket(
+UmCreateSocket(
   PASOCKET* Socket,
   PADDRINFOA Address);
 
 INT32
-KcConnect(
+UmConnect(
   PASOCKET Socket);
 
 INT32
-KcShutdownSocket(
+UmShutdownSocket(
   PASOCKET Socket);
 
 INT32
-KcCloseSocket(
+UmCloseSocket(
   PASOCKET Socket);
 
 INT32
-KcSend(
+UmSend(
   PASOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,
   UINT32 Flags);
 
 INT32
-KcRecv(
+UmRecv(
   PASOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,

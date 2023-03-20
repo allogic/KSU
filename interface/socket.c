@@ -1,13 +1,21 @@
 #include "socket.h"
 
+///////////////////////////////////////////////////////////////
+// Private Types
+///////////////////////////////////////////////////////////////
+
 typedef struct _ASOCKET
 {
   SOCKET Socket;
   ADDRINFO Address;
 } ASOCKET, * PASOCKET;
 
+///////////////////////////////////////////////////////////////
+// Implementation
+///////////////////////////////////////////////////////////////
+
 INT32
-KcSocketInitialize()
+UmInitializeWsa()
 {
   INT32 status = 0;
 
@@ -19,13 +27,13 @@ KcSocketInitialize()
 }
 
 VOID
-KcSocketDeinitialize()
+UmDeinitializeWsa()
 {
   WSACleanup();
 }
 
 INT32
-KcGetAddrInfo(
+UmGetAddrInfo(
   PCSTR Address,
   PCSTR Port,
   ADDRESS_FAMILY AddressFamily,
@@ -47,14 +55,14 @@ KcGetAddrInfo(
 }
 
 VOID
-KcFreeAddrInfo(
+UmFreeAddrInfo(
   PADDRINFOA AddressInfo)
 {
   freeaddrinfo(AddressInfo);
 }
 
 INT32
-KcCreateSocket(
+UmCreateSocket(
   PASOCKET* Socket,
   PADDRINFOA Address)
 {
@@ -85,7 +93,7 @@ KcCreateSocket(
 }
 
 INT32
-KcConnect(
+UmConnect(
   PASOCKET Socket)
 {
   INT32 status = 0;
@@ -97,7 +105,7 @@ KcConnect(
 }
 
 INT32
-KcShutdownSocket(
+UmShutdownSocket(
   PASOCKET Socket)
 {
   INT32 status = 0;
@@ -109,7 +117,7 @@ KcShutdownSocket(
 }
 
 INT32
-KcCloseSocket(
+UmCloseSocket(
   PASOCKET Socket)
 {
   INT32 status = 0;
@@ -125,7 +133,7 @@ KcCloseSocket(
 }
 
 INT32
-KcSend(
+UmSend(
   PASOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,
@@ -144,7 +152,7 @@ KcSend(
 }
 
 INT32
-KcRecv(
+UmRecv(
   PASOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,

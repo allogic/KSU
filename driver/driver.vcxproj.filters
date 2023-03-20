@@ -19,7 +19,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <Inf Include="netbug.inf">
+    <Inf Include="driver.inf">
       <Filter>Driver Files</Filter>
     </Inf>
   </ItemGroup>
@@ -33,16 +33,10 @@
     <ClInclude Include="undoc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="pagewalk.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="core.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="scanner.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="mem.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="except.h">
@@ -56,13 +50,7 @@
     <ClCompile Include="socket.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="pagewalk.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="scanner.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="mem.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="except.c">

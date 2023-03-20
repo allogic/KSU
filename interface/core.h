@@ -13,6 +13,10 @@
 #include <winsock2.h>
 #include <ws2tcpip.h>
 
+///////////////////////////////////////////////////////////////
+// Public Definitions
+///////////////////////////////////////////////////////////////
+
 #define LOG(FMT, ...) printf(FMT, __VA_ARGS__)
 #define STATUS_UNHANDLED_EXCEPTION 0xC0000144L
 

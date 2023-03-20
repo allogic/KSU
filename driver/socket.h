@@ -3,56 +3,41 @@
 
 #include "core.h"
 
+///////////////////////////////////////////////////////////////
+// Public Definitions
+///////////////////////////////////////////////////////////////
+
+#define HTONS(N) ((((UINT16)(N) & 0xFF)) << 8) | (((UINT16)(N) & 0xFF00) >> 8)
+
+///////////////////////////////////////////////////////////////
+// Public Types
+///////////////////////////////////////////////////////////////
+
 typedef struct _KSOCKET KSOCKET, * PKSOCKET;
 
-typedef struct _KSOCKET_ASYNC_CONTEXT
-{
-  KEVENT CompletionEvent;
-  PIRP Irp;
-} KSOCKET_ASYNC_CONTEXT, * PKSOCKET_ASYNC_CONTEXT;
+///////////////////////////////////////////////////////////////
+// Public API
+///////////////////////////////////////////////////////////////
 
 NTSTATUS
-NbAsyncContextAllocate(
-  PKSOCKET_ASYNC_CONTEXT AsyncContext);
+KmInitializeWsk();
 
 VOID
-NbAsyncContextFree(
-  PKSOCKET_ASYNC_CONTEXT AsyncContext);
-
-VOID
-NbAsyncContextReset(
-  PKSOCKET_ASYNC_CONTEXT AsyncContext);
+KmDeinitializeWsk();
 
 NTSTATUS
-NbAsyncContextCompletionRoutine(
-  PDEVICE_OBJECT	DeviceObject,
-  PIRP Irp,
-  PKEVENT CompletionEvent);
-
-NTSTATUS
-NbAsyncContextWaitForCompletion(
-  PKSOCKET_ASYNC_CONTEXT AsyncContext,
-  PNTSTATUS Status);
-
-NTSTATUS
-NbSocketInitialize();
-
-VOID
-NbSocketDeinitialize();
-
-NTSTATUS
-NbGetAddrInfo(
+KmGetAddrInfo(
   PUNICODE_STRING NodeName,
   PUNICODE_STRING ServiceName,
   PADDRINFOEXW Hints,
   PADDRINFOEXW* Result);
 
 VOID
-NbFreeAddrInfo(
+KmFreeAddrInfo(
   PADDRINFOEXW AddressInfo);
 
 NTSTATUS
-NbCreateSocket(
+KmCreateSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
@@ -60,49 +45,49 @@ NbCreateSocket(
   UINT32 Flags);
 
 NTSTATUS
-NbCreateConnectionSocket(
+KmCreateConnectionSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
   UINT32 Protocol);
 
 NTSTATUS
-NbCreateListenSocket(
+KmCreateListenSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
   UINT32 Protocol);
 
 NTSTATUS
-NbCreateDatagramSocket(
+KmCreateDatagramSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
   UINT32 Protocol);
 
 NTSTATUS
-NbCloseSocket(
+KmCloseSocket(
   PKSOCKET Socket);
 
 NTSTATUS
-NbBind(
+KmBind(
   PKSOCKET Socket,
   PSOCKADDR LocalAddress);
 
 NTSTATUS
-NbAccept(
+KmAccept(
   PKSOCKET Socket,
   PKSOCKET* NewSocket,
   PSOCKADDR LocalAddress,
   PSOCKADDR RemoteAddress);
 
 NTSTATUS
-NbConnect(
+KmConnect(
   PKSOCKET Socket,
   PSOCKADDR RemoteAddress);
 
 NTSTATUS
-NbSendRecv(
+KmSendRecv(
   PKSOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,
@@ -110,14 +95,14 @@ NbSendRecv(
   BOOLEAN Send);
 
 NTSTATUS
-NbSend(
+KmSend(
   PKSOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,
   UINT32 Flags);
 
 NTSTATUS
-NbRecv(
+KmRecv(
   PKSOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,

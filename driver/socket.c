@@ -1,6 +1,16 @@
 #include "socket.h"
 #include "except.h"
 
+///////////////////////////////////////////////////////////////
+// Private Types
+///////////////////////////////////////////////////////////////
+
+typedef struct _KSOCKET_ASYNC_CONTEXT
+{
+  KEVENT CompletionEvent;
+  PIRP Irp;
+} KSOCKET_ASYNC_CONTEXT, * PKSOCKET_ASYNC_CONTEXT;
+
 typedef struct _KSOCKET
 {
   PWSK_SOCKET	WskSocket;
@@ -10,19 +20,52 @@ typedef struct _KSOCKET
     PWSK_PROVIDER_CONNECTION_DISPATCH WskConnectionDispatch;
     PWSK_PROVIDER_LISTEN_DISPATCH WskListenDispatch;
     PWSK_PROVIDER_DATAGRAM_DISPATCH WskDatagramDispatch;
-#if (NTDDI_VERSION >= NTDDI_WIN10_RS2)
     PWSK_PROVIDER_STREAM_DISPATCH WskStreamDispatch;
-#endif
   };
   KSOCKET_ASYNC_CONTEXT AsyncContext;
 } KSOCKET, * PKSOCKET;
 
-static WSK_REGISTRATION sWskRegistration;
-static WSK_PROVIDER_NPI sWskProvider;
+///////////////////////////////////////////////////////////////
+// Private Variables
+///////////////////////////////////////////////////////////////
+
+static WSK_REGISTRATION sWskRegistration = { 0 };
+static WSK_PROVIDER_NPI sWskProvider = { 0 };
 static WSK_CLIENT_DISPATCH sWskDispatch = { MAKE_WSK_VERSION(1,0), 0, NULL };
 
+///////////////////////////////////////////////////////////////
+// Private API
+///////////////////////////////////////////////////////////////
+
 NTSTATUS
-NbAsyncContextAllocate(
+KmAsyncContextAllocate(
+  PKSOCKET_ASYNC_CONTEXT AsyncContext);
+
+VOID
+KmAsyncContextFree(
+  PKSOCKET_ASYNC_CONTEXT AsyncContext);
+
+VOID
+KmAsyncContextReset(
+  PKSOCKET_ASYNC_CONTEXT AsyncContext);
+
+NTSTATUS
+KmAsyncContextCompletionRoutine(
+  PDEVICE_OBJECT	DeviceObject,
+  PIRP Irp,
+  PKEVENT CompletionEvent);
+
+NTSTATUS
+KmAsyncContextWaitForCompletion(
+  PKSOCKET_ASYNC_CONTEXT AsyncContext,
+  PNTSTATUS Status);
+
+///////////////////////////////////////////////////////////////
+// Implementation
+///////////////////////////////////////////////////////////////
+
+NTSTATUS
+KmAsyncContextAllocate(
   PKSOCKET_ASYNC_CONTEXT AsyncContext)
 {
   // Initialize the completion event
@@ -42,7 +85,7 @@ NbAsyncContextAllocate(
     // NbAsyncContextCompletionRoutine will set the CompletionEvent
     IoSetCompletionRoutine(
       AsyncContext->Irp,
-      &NbAsyncContextCompletionRoutine,
+      &KmAsyncContextCompletionRoutine,
       &AsyncContext->CompletionEvent,
       TRUE,
       TRUE,
@@ -53,7 +96,7 @@ NbAsyncContextAllocate(
 }
 
 VOID
-NbAsyncContextFree(
+KmAsyncContextFree(
   PKSOCKET_ASYNC_CONTEXT AsyncContext)
 {
   // Free the IRP
@@ -61,7 +104,7 @@ NbAsyncContextFree(
 }
 
 VOID
-NbAsyncContextReset(
+KmAsyncContextReset(
   PKSOCKET_ASYNC_CONTEXT AsyncContext)
 {
   // Reset the completion event
@@ -72,7 +115,7 @@ NbAsyncContextReset(
 
   IoSetCompletionRoutine(
     AsyncContext->Irp,
-    &NbAsyncContextCompletionRoutine,
+    &KmAsyncContextCompletionRoutine,
     &AsyncContext->CompletionEvent,
     TRUE,
     TRUE,
@@ -80,7 +123,7 @@ NbAsyncContextReset(
 }
 
 NTSTATUS
-NbAsyncContextCompletionRoutine(
+KmAsyncContextCompletionRoutine(
   PDEVICE_OBJECT DeviceObject,
   PIRP Irp,
   PKEVENT CompletionEvent)
@@ -94,7 +137,7 @@ NbAsyncContextCompletionRoutine(
 }
 
 NTSTATUS
-NbAsyncContextWaitForCompletion(
+KmAsyncContextWaitForCompletion(
   PKSOCKET_ASYNC_CONTEXT AsyncContext,
   PNTSTATUS Status)
 {
@@ -114,7 +157,7 @@ NbAsyncContextWaitForCompletion(
 }
 
 NTSTATUS
-NbSocketInitialize()
+KmInitializeWsk()
 {
   NTSTATUS status = STATUS_UNSUCCESSFUL;
 
@@ -138,7 +181,7 @@ NbSocketInitialize()
 }
 
 VOID
-NbSocketDeinitialize()
+KmDeinitializeWsk()
 {
   // Release the provider NPI instance
   WskReleaseProviderNPI(&sWskRegistration);
@@ -148,7 +191,7 @@ NbSocketDeinitialize()
 }
 
 NTSTATUS
-NbGetAddrInfo(
+KmGetAddrInfo(
   PUNICODE_STRING NodeName,
   PUNICODE_STRING ServiceName,
   PADDRINFOEXW Hints,
@@ -158,7 +201,7 @@ NbGetAddrInfo(
 
   // Allocate async context
   KSOCKET_ASYNC_CONTEXT asyncContext;
-  status = NbAsyncContextAllocate(&asyncContext);
+  status = KmAsyncContextAllocate(&asyncContext);
 
   if (NT_SUCCESS(status))
   {
@@ -175,17 +218,17 @@ NbGetAddrInfo(
       NULL,
       asyncContext.Irp);
 
-    NbAsyncContextWaitForCompletion(&asyncContext, &status);
+    KmAsyncContextWaitForCompletion(&asyncContext, &status);
 
     // Free the async context
-    NbAsyncContextFree(&asyncContext);
+    KmAsyncContextFree(&asyncContext);
   }
 
   return status;
 }
 
 VOID
-NbFreeAddrInfo(
+KmFreeAddrInfo(
   PADDRINFOEXW AddressInfo)
 {
   sWskProvider.Dispatch->WskFreeAddressInfo(
@@ -194,7 +237,7 @@ NbFreeAddrInfo(
 }
 
 NTSTATUS
-NbCreateSocket(
+KmCreateSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
@@ -208,7 +251,7 @@ NbCreateSocket(
   if (newSocket)
   {
     // Allocate async context for the socket
-    status = NbAsyncContextAllocate(&newSocket->AsyncContext);
+    status = KmAsyncContextAllocate(&newSocket->AsyncContext);
     if (NT_SUCCESS(status))
     {
       // Create the WSK socket
@@ -225,7 +268,7 @@ NbCreateSocket(
         NULL,
         newSocket->AsyncContext.Irp);
 
-      NbAsyncContextWaitForCompletion(&newSocket->AsyncContext, &status);
+      KmAsyncContextWaitForCompletion(&newSocket->AsyncContext, &status);
 
       // Save the socket instance and the socket dispatch table
       if (NT_SUCCESS(status))
@@ -242,53 +285,53 @@ NbCreateSocket(
 }
 
 NTSTATUS
-NbCreateConnectionSocket(
+KmCreateConnectionSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
   UINT32 Protocol)
 {
-  return NbCreateSocket(Socket, AddressFamily, SocketType, Protocol, WSK_FLAG_CONNECTION_SOCKET);
+  return KmCreateSocket(Socket, AddressFamily, SocketType, Protocol, WSK_FLAG_CONNECTION_SOCKET);
 }
 
 NTSTATUS
-NbCreateListenSocket(
+KmCreateListenSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
   UINT32 Protocol)
 {
-  return NbCreateSocket(Socket, AddressFamily, SocketType, Protocol, WSK_FLAG_LISTEN_SOCKET);
+  return KmCreateSocket(Socket, AddressFamily, SocketType, Protocol, WSK_FLAG_LISTEN_SOCKET);
 }
 
 NTSTATUS
-NbCreateDatagramSocket(
+KmCreateDatagramSocket(
   PKSOCKET* Socket,
   ADDRESS_FAMILY AddressFamily,
   UINT16 SocketType,
   UINT32 Protocol)
 {
-  return NbCreateSocket(Socket, AddressFamily, SocketType, Protocol, WSK_FLAG_DATAGRAM_SOCKET);
+  return KmCreateSocket(Socket, AddressFamily, SocketType, Protocol, WSK_FLAG_DATAGRAM_SOCKET);
 }
 
 NTSTATUS
-NbCloseSocket(
+KmCloseSocket(
   PKSOCKET Socket)
 {
   NTSTATUS status = STATUS_UNSUCCESSFUL;
 
   // Reset the async context
-  NbAsyncContextReset(&Socket->AsyncContext);
+  KmAsyncContextReset(&Socket->AsyncContext);
 
   // Close the WSK socket
   status = Socket->WskConnectionDispatch->WskCloseSocket(
     Socket->WskSocket,
     Socket->AsyncContext.Irp);
 
-  NbAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
+  KmAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
 
   // Free the async context
-  NbAsyncContextFree(&Socket->AsyncContext);
+  KmAsyncContextFree(&Socket->AsyncContext);
 
   // Free memory for the socket structure
   ExFreePoolWithTag(Socket, MEMORY_TAG);
@@ -297,14 +340,14 @@ NbCloseSocket(
 }
 
 NTSTATUS
-NbBind(
+KmBind(
   PKSOCKET Socket,
   PSOCKADDR LocalAddress)
 {
   NTSTATUS status = STATUS_UNSUCCESSFUL;
 
   // Reset the async context
-  NbAsyncContextReset(&Socket->AsyncContext);
+  KmAsyncContextReset(&Socket->AsyncContext);
 
   // Bind the socket
   status = Socket->WskListenDispatch->WskBind(
@@ -313,13 +356,13 @@ NbBind(
     0,
     Socket->AsyncContext.Irp);
 
-  NbAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
+  KmAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
 
   return status;
 }
 
 NTSTATUS
-NbAccept(
+KmAccept(
   PKSOCKET Socket,
   PKSOCKET* NewSocket,
   PSOCKADDR LocalAddress,
@@ -328,7 +371,7 @@ NbAccept(
   NTSTATUS status = STATUS_UNSUCCESSFUL;
 
   // Reset the async context
-  NbAsyncContextReset(&Socket->AsyncContext);
+  KmAsyncContextReset(&Socket->AsyncContext);
 
   // Accept the connection
   status = Socket->WskListenDispatch->WskAccept(
@@ -340,7 +383,7 @@ NbAccept(
     RemoteAddress,
     Socket->AsyncContext.Irp);
 
-  NbAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
+  KmAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
 
   // Save the socket instance and the socket dispatch table
   if (NT_SUCCESS(status))
@@ -351,7 +394,7 @@ NbAccept(
       newSocket->WskSocket = (PWSK_SOCKET)Socket->AsyncContext.Irp->IoStatus.Information;
       newSocket->WskDispatch = (PVOID)newSocket->WskSocket->Dispatch;
 
-      NbAsyncContextAllocate(&newSocket->AsyncContext);
+      KmAsyncContextAllocate(&newSocket->AsyncContext);
 
       *NewSocket = newSocket;
     }
@@ -365,14 +408,14 @@ NbAccept(
 }
 
 NTSTATUS
-NbConnect(
+KmConnect(
   PKSOCKET Socket,
   PSOCKADDR RemoteAddress)
 {
   NTSTATUS status = STATUS_UNSUCCESSFUL;
 
   // Reset the async context
-  NbAsyncContextReset(&Socket->AsyncContext);
+  KmAsyncContextReset(&Socket->AsyncContext);
 
   // Bind the socket to the local address
   SOCKADDR_IN localAddress;
@@ -386,12 +429,12 @@ NbConnect(
     0,
     Socket->AsyncContext.Irp);
 
-  NbAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
+  KmAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
 
   if (NT_SUCCESS(status))
   {
     // Reset the async context (again)
-    NbAsyncContextReset(&Socket->AsyncContext);
+    KmAsyncContextReset(&Socket->AsyncContext);
 
     // Connect to the remote host
     status = Socket->WskConnectionDispatch->WskConnect(
@@ -400,14 +443,14 @@ NbConnect(
       0,
       Socket->AsyncContext.Irp);
 
-    NbAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
+    KmAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
   }
 
   return status;
 }
 
 NTSTATUS
-NbSendRecv(
+KmSendRecv(
   PKSOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,
@@ -434,7 +477,7 @@ NbSendRecv(
   }
 
   // Reset the async context
-  NbAsyncContextReset(&Socket->AsyncContext);
+  KmAsyncContextReset(&Socket->AsyncContext);
 
   // Send/Receive the data
   if (Send)
@@ -454,7 +497,7 @@ NbSendRecv(
       Socket->AsyncContext.Irp);
   }
 
-  NbAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
+  KmAsyncContextWaitForCompletion(&Socket->AsyncContext, &status);
 
   // Set the number of bytes sent/received
   if (NT_SUCCESS(status))
@@ -473,21 +516,21 @@ Error:
 }
 
 NTSTATUS
-NbSend(
+KmSend(
   PKSOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,
   UINT32 Flags)
 {
-  return NbSendRecv(Socket, Buffer, Length, Flags, TRUE);
+  return KmSendRecv(Socket, Buffer, Length, Flags, TRUE);
 }
 
 NTSTATUS
-NbRecv(
+KmRecv(
   PKSOCKET Socket,
   PVOID Buffer,
   PUINT32 Length,
   UINT32 Flags)
 {
-  return NbSendRecv(Socket, Buffer, Length, Flags, FALSE);
+  return KmSendRecv(Socket, Buffer, Length, Flags, FALSE);
 }

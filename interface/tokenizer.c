@@ -1,7 +1,11 @@
 #include "tokenizer.h"
 
+///////////////////////////////////////////////////////////////
+// Implementation
+///////////////////////////////////////////////////////////////
+
 LPSTR*
-KcTokenizeString(
+UmTokenizeString(
   LPSTR String,
   PUINT32 TokenCount)
 {
@@ -46,7 +50,7 @@ KcTokenizeString(
 }
 
 VOID
-KcFreeTokens(
+UmFreeTokens(
   LPSTR* Tokens,
   UINT32 TokenCount)
 {
