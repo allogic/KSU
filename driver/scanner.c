@@ -21,6 +21,7 @@ static UINT32 sPhysicalMemoryRangeCount = 0;
 static LIST_ENTRY sScanList = { 0 };
 static UINT64 sScanCount = 0;
 
+static UINT32 sPid = 0;
 static PEPROCESS sProcess = NULL;
 static UINT32 sNumberOfBytes = 0;
 static PCHAR sValue = NULL;
@@ -120,7 +121,7 @@ KmIteratePageTable(
   {
     if (LargePage)
     {
-      KmScanArrayOfBytes((PCHAR)pageTable, 0X1000000);
+      //KmScanArrayOfBytes((PCHAR)pageTable, 0X1000000);
     }
     else
     {
@@ -150,7 +151,7 @@ KmIteratePageDirectoryTable(
   {
     if (LargePage)
     {
-      KmScanArrayOfBytes((PCHAR)pageDirectoryTable, 0X40000000);
+      //KmScanArrayOfBytes((PCHAR)pageDirectoryTable, 0X40000000);
     }
     else
     {
@@ -219,71 +220,78 @@ KmScanArrayOfBytes(
   PCHAR Address,
   UINT32 Size)
 {
-  // Attach to process
-  KAPC_STATE apc;
-  KeStackAttachProcess(sProcess, &apc);
+  NTSTATUS status = STATUS_UNSUCCESSFUL;
 
+  //ProbeForWrite()
+  //ZwProtectVirtualMemory()
+
+  // Attach to process
+  //KAPC_STATE apc;
+  //KeStackAttachProcess(sProcess, &apc);
+
+  // Create MDL for supplied range
   PMDL mdl = IoAllocateMdl(Address, Size, FALSE, FALSE, NULL);
   if (mdl)
   {
     // Try lock pages
     MmProbeAndLockPages(mdl, KernelMode, IoReadAccess);
-
+  
     // Remap to non-paged memory
-    PVOID mapped = MmMapLockedPagesSpecifyCache(mdl, KernelMode, MmNonCached, NULL, FALSE, HighPagePriority);
+    PCHAR mapped = MmMapLockedPagesSpecifyCache(mdl, KernelMode, MmNonCached, NULL, FALSE, HighPagePriority);
     if (mapped)
     {
       // Set page protection
-      NTSTATUS status = MmProtectMdlSystemAddress(mdl, PAGE_READONLY);
+      status = MmProtectMdlSystemAddress(mdl, PAGE_READONLY);
       if (NT_SUCCESS(status))
       {
-        // Start byte scan
-        PCHAR ptr = mapped;
-        for (UINT32 i = 0; i <= (Size - sNumberOfBytes); i++)
-        {
-          BOOL found = TRUE;
-          for (UINT32 j = 0; j < sNumberOfBytes; j++)
-          {
-            LOG("Before access\n");
+        LOG("Success\n");
 
-            if (ptr[i + j] != sValue[j])
-            {
-              found = FALSE;
-              break;
-            }
-
-            LOG("After access\n");
-          }
-
-          if (found)
-          {
-            // Insert scan result
-            PSCAN_ENTRY scanEntry = ExAllocatePoolWithTag(NonPagedPool, sizeof(SCAN_ENTRY), MEMORY_TAG);
-            if (scanEntry)
-            {
-              scanEntry->Address = ptr + i;
-              InsertTailList(&sScanList, &scanEntry->List);
-
-              // Increment scan count
-              sScanCount++;
-            }
-          }
-        }
+        // Query virtual memory informations
+        //MEMORY_BASIC_INFORMATION mbi = { 0 };
+        //status = ZwQueryVirtualMemory((HANDLE)sPid, mapped, MemoryBasicInformation, &mbi, sizeof(mbi), NULL);
+        //LOG("Status:0x%08X\n", status);
+        //if (NT_SUCCESS(status))
+        //{
+        //  LOG("Scanning %p %p %p\n", Address, mapped, mbi.BaseAddress);
+        //  // Skip non-committed, no-access and guard pages
+        //  if ((mbi.State == MEM_COMMIT) && (mbi.Protect != PAGE_NOACCESS) && ((mbi.Protect & PAGE_GUARD) == FALSE))
+        //  {
+        //    // Start byte scan
+        //    for (PCHAR ptr = mapped; ptr <= ((mapped + Size) - sNumberOfBytes); ptr++)
+        //    {
+        //      BOOL found = TRUE;
+        //
+        //      for (UINT32 j = 0; j < sNumberOfBytes; j++)
+        //      {
+        //        if (ptr[j] != sValue[j])
+        //        {
+        //          found = FALSE;
+        //          break;
+        //        }
+        //      }
+        //
+        //      if (found)
+        //      {
+        //        LOG("Found at %p\n", ptr);
+        //      }
+        //    }
+        //  }
+        //}
       }
-
+    
       // Unmap locked pages
       MmUnmapLockedPages(mapped, mdl);
     }
-
+  
     // Unlock MDL
     MmUnlockPages(mdl);
-
+  
     // Free MDL
     IoFreeMdl(mdl);
   }
 
   // Detach from process
-  KeUnstackDetachProcess(&apc);
+  //KeUnstackDetachProcess(&apc);
 }
 
 VOID
@@ -299,10 +307,12 @@ KmInitializeScanner()
 
 VOID
 KmConfigureScanner(
+  UINT32 Pid,
   PEPROCESS Process,
   UINT32 NumberOfBytes,
   PCHAR Value)
 {
+  sPid = Pid;
   sProcess = Process;
   sNumberOfBytes = NumberOfBytes;
   sValue = Value;
@@ -312,6 +322,7 @@ VOID
 KmResetScanner()
 {
   // Reset configuration
+  sPid = 0;
   sProcess = NULL;
   sNumberOfBytes = 0;
   sValue = NULL;
@@ -333,10 +344,10 @@ KmResetScanner()
 }
 
 VOID
-KmNewScan(
-  PVOID Address)
+KmNewScan()
 {
-  PHYSICAL_ADDRESS address = { .QuadPart = (UINT64)Address };
+  // Start iterating physical pages
+  PHYSICAL_ADDRESS address = { .QuadPart = sProcess->DirectoryTableBase };
   KmIteratePageMapLevel4Table(address);
 }
 

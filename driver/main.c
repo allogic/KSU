@@ -35,6 +35,10 @@ KmScanRequest(
 {
   NTSTATUS status = STATUS_UNSUCCESSFUL;
 
+  // Raise IRQ to dispatch level
+  KIRQL prevInterruptRequestLevel = PASSIVE_LEVEL;
+  KeRaiseIrql(DISPATCH_LEVEL, &prevInterruptRequestLevel);
+
   __try
   {
     // Receive scan settings
@@ -51,22 +55,22 @@ KmScanRequest(
         LOG("Found process %u\n", requestScan.Pid);
 
         // Allocate buffer to hold value to be scanned for
-        PVOID requestValue = ExAllocatePoolWithTag(NonPagedPool, requestScan.NumberOfBytes, MEMORY_TAG);
+        PCHAR requestValue = ExAllocatePoolWithTag(NonPagedPool, requestScan.NumberOfBytes, MEMORY_TAG);
         if (requestValue)
         {
           // Receive bytes to scan for
           UINT32 requestValueSize = requestScan.NumberOfBytes;
-          status = KmRecv(Socket, &requestValue, &requestValueSize, 0);
+          status = KmRecv(Socket, requestValue, &requestValueSize, 0);
           if (NT_SUCCESS(status))
           {
             LOG("Received %u bytes to scan for\n", requestScan.NumberOfBytes);
             LOG("Scanning...\n");
 
             // Configure scanner
-            KmConfigureScanner(process, requestScan.NumberOfBytes, requestValue);
+            KmConfigureScanner(requestScan.Pid, process, requestScan.NumberOfBytes, requestValue);
 
             // Start scanning pages
-            KmNewScan((PVOID)process->DirectoryTableBase);
+            KmNewScan();
 
             // Print current findings
             KmPrintScanResults();
@@ -96,6 +100,9 @@ KmScanRequest(
   {
     status = STATUS_UNHANDLED_EXCEPTION;
   }
+
+  // Lower IRQ to previous level
+  KeLowerIrql(prevInterruptRequestLevel);
 
   return status;
 }

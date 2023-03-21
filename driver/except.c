@@ -13,18 +13,18 @@ KmExceptionHandler(
 
   LOG("------------------------------------------------\n");
   LOG("Exception Record:\n");
-  LOG("  ExceptionCode:    %016X\n", Exception->ExceptionRecord->ExceptionCode);
-  LOG("  ExceptionFlags:   %016X\n", Exception->ExceptionRecord->ExceptionFlags);
+  LOG("  ExceptionCode   : %016X\n", Exception->ExceptionRecord->ExceptionCode);
+  LOG("  ExceptionFlags  : %016X\n", Exception->ExceptionRecord->ExceptionFlags);
   LOG("  ExceptionAddress: %p\n", Exception->ExceptionRecord->ExceptionAddress);
   LOG("  NumberParameters: %016X\n", Exception->ExceptionRecord->NumberParameters);
   LOG("------------------------------------------------\n");
   LOG("Segment Registers:\n");
-  LOG("  SegCs:  %08X\n", Exception->ContextRecord->SegCs);
-  LOG("  SegDs:  %08X\n", Exception->ContextRecord->SegDs);
-  LOG("  SegEs:  %08X\n", Exception->ContextRecord->SegEs);
-  LOG("  SegFs:  %08X\n", Exception->ContextRecord->SegFs);
-  LOG("  SegGs:  %08X\n", Exception->ContextRecord->SegGs);
-  LOG("  SegSs:  %08X\n", Exception->ContextRecord->SegSs);
+  LOG("  SegCs : %08X\n", Exception->ContextRecord->SegCs);
+  LOG("  SegDs : %08X\n", Exception->ContextRecord->SegDs);
+  LOG("  SegEs : %08X\n", Exception->ContextRecord->SegEs);
+  LOG("  SegFs : %08X\n", Exception->ContextRecord->SegFs);
+  LOG("  SegGs : %08X\n", Exception->ContextRecord->SegGs);
+  LOG("  SegSs : %08X\n", Exception->ContextRecord->SegSs);
   LOG("  EFlags: %08X\n", Exception->ContextRecord->EFlags);
   LOG("------------------------------------------------\n");
   LOG("Debug Registers:\n");
@@ -57,10 +57,10 @@ KmExceptionHandler(
   LOG("  RIP: %p\n", (PVOID)Exception->ContextRecord->Rip);
   LOG("------------------------------------------------\n");
   LOG("Special Debug Control Registers:\n");
-  LOG("  DebugControl:         %p\n", (PVOID)Exception->ContextRecord->DebugControl);
-  LOG("  LastBranchToRip:      %p\n", (PVOID)Exception->ContextRecord->LastBranchToRip);
-  LOG("  LastBranchFromRip:    %p\n", (PVOID)Exception->ContextRecord->LastBranchFromRip);
-  LOG("  LastExceptionToRip:   %p\n", (PVOID)Exception->ContextRecord->LastExceptionToRip);
+  LOG("  DebugControl        : %p\n", (PVOID)Exception->ContextRecord->DebugControl);
+  LOG("  LastBranchToRip     : %p\n", (PVOID)Exception->ContextRecord->LastBranchToRip);
+  LOG("  LastBranchFromRip   : %p\n", (PVOID)Exception->ContextRecord->LastBranchFromRip);
+  LOG("  LastExceptionToRip  : %p\n", (PVOID)Exception->ContextRecord->LastExceptionToRip);
   LOG("  LastExceptionFromRip: %p\n", (PVOID)Exception->ContextRecord->LastExceptionFromRip);
   LOG("------------------------------------------------\n");
 
