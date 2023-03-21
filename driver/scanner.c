@@ -220,78 +220,34 @@ KmScanArrayOfBytes(
   PCHAR Address,
   UINT32 Size)
 {
-  NTSTATUS status = STATUS_UNSUCCESSFUL;
-
-  //ProbeForWrite()
-  //ZwProtectVirtualMemory()
-
-  // Attach to process
-  //KAPC_STATE apc;
-  //KeStackAttachProcess(sProcess, &apc);
-
-  // Create MDL for supplied range
-  PMDL mdl = IoAllocateMdl(Address, Size, FALSE, FALSE, NULL);
-  if (mdl)
+  // Start byte scan
+  for (PCHAR ptr = Address; ptr <= ((Address + Size) - sNumberOfBytes); ptr++)
   {
-    // Try lock pages
-    MmProbeAndLockPages(mdl, KernelMode, IoReadAccess);
+    BOOL found = TRUE;
   
-    // Remap to non-paged memory
-    PCHAR mapped = MmMapLockedPagesSpecifyCache(mdl, KernelMode, MmNonCached, NULL, FALSE, HighPagePriority);
-    if (mapped)
+    for (UINT32 j = 0; j < sNumberOfBytes; j++)
     {
-      // Set page protection
-      status = MmProtectMdlSystemAddress(mdl, PAGE_READONLY);
-      if (NT_SUCCESS(status))
+      if (ptr[j] != sValue[j])
       {
-        LOG("Success\n");
-
-        // Query virtual memory informations
-        //MEMORY_BASIC_INFORMATION mbi = { 0 };
-        //status = ZwQueryVirtualMemory((HANDLE)sPid, mapped, MemoryBasicInformation, &mbi, sizeof(mbi), NULL);
-        //LOG("Status:0x%08X\n", status);
-        //if (NT_SUCCESS(status))
-        //{
-        //  LOG("Scanning %p %p %p\n", Address, mapped, mbi.BaseAddress);
-        //  // Skip non-committed, no-access and guard pages
-        //  if ((mbi.State == MEM_COMMIT) && (mbi.Protect != PAGE_NOACCESS) && ((mbi.Protect & PAGE_GUARD) == FALSE))
-        //  {
-        //    // Start byte scan
-        //    for (PCHAR ptr = mapped; ptr <= ((mapped + Size) - sNumberOfBytes); ptr++)
-        //    {
-        //      BOOL found = TRUE;
-        //
-        //      for (UINT32 j = 0; j < sNumberOfBytes; j++)
-        //      {
-        //        if (ptr[j] != sValue[j])
-        //        {
-        //          found = FALSE;
-        //          break;
-        //        }
-        //      }
-        //
-        //      if (found)
-        //      {
-        //        LOG("Found at %p\n", ptr);
-        //      }
-        //    }
-        //  }
-        //}
+        found = FALSE;
+        break;
       }
-    
-      // Unmap locked pages
-      MmUnmapLockedPages(mapped, mdl);
     }
   
-    // Unlock MDL
-    MmUnlockPages(mdl);
-  
-    // Free MDL
-    IoFreeMdl(mdl);
-  }
+    if (found)
+    {
+      // Insert scan result
+      PSCAN_ENTRY scanEntry = ExAllocatePoolWithTag(NonPagedPool, sizeof(SCAN_ENTRY), MEMORY_TAG);
+      if (scanEntry)
+      {
+        scanEntry->Address = ptr;
+        InsertTailList(&sScanList, &scanEntry->List);
 
-  // Detach from process
-  //KeUnstackDetachProcess(&apc);
+        // Increment scan count
+        sScanCount++;
+      }
+    }
+  }
 }
 
 VOID
