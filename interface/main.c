@@ -43,8 +43,6 @@ INT32 main(INT32 Argc, PCHAR Argv[])
               status = UmConnect(remoteSocket);
               if (status == 0)
               {
-                LOG("Connected to server\n");
-            
                 REQUEST_TYPE requestType = atoi(tokens[0]);
                 UINT32 requestTypeSize = sizeof(requestType);
                 status = UmSend(remoteSocket, &requestType, &requestTypeSize, 0);
@@ -59,13 +57,15 @@ INT32 main(INT32 Argc, PCHAR Argv[])
                 UINT32 requestValueSize = sizeof(requestValue);
                 status = UmSend(remoteSocket, &requestValue, &requestValueSize, 0);
 
+                SCAN_TYPE scanType = atoi(tokens[4]);
+                UINT32 scanTypeSize = sizeof(scanType);
+                status = UmSend(remoteSocket, &scanType, &scanTypeSize, 0);
+
                 //UINT32 recvBufferSize = sizeof(recvBuffer) - 1;
                 //status = WsaRecv(Socket, recvBuffer, &recvBufferSize, 0);
             
                 // Shutdown remote socket
                 UmShutdownSocket(remoteSocket);
-            
-                LOG("Disconnected from server\n");
               }
             
               // Close remote socket

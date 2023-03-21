@@ -8,8 +8,16 @@
 typedef struct _SCAN_ENTRY
 {
   LIST_ENTRY List;
-  PVOID Address;
+  PCHAR Address;
 } SCAN_ENTRY, * PSCAN_ENTRY;
+
+typedef struct _OPERATION_ENTRY
+{
+  LIST_ENTRY List;
+  CHAR Name[32];
+  LIST_ENTRY ScanList;
+  UINT32 ScanCount;
+} OPERATION_ENTRY, * POPERATION_ENTRY;
 
 ///////////////////////////////////////////////////////////////
 // Private Variables
@@ -18,8 +26,8 @@ typedef struct _SCAN_ENTRY
 static PPHYSICAL_MEMORY_RANGE sPhysicalMemoryRange = NULL;
 static UINT32 sPhysicalMemoryRangeCount = 0;
 
-static LIST_ENTRY sScanList = { 0 };
-static UINT64 sScanCount = 0;
+static LIST_ENTRY sOperationList = { 0 };
+static UINT32 sOperationCount = 0;
 
 static UINT32 sPid = 0;
 static PEPROCESS sProcess = NULL;
@@ -36,6 +44,11 @@ KmIsInPhysicalMemoryRange(
 
 UINT32
 KmGetPhysicalMemoryRangeCount();
+
+VOID
+KmIterateBytes(
+  PCHAR Address,
+  UINT32 Size);
 
 VOID
 KmIteratePage(
@@ -60,9 +73,14 @@ KmIteratePageMapLevel4Table(
   PHYSICAL_ADDRESS Address);
 
 VOID
-KmScanArrayOfBytes(
-  PCHAR Address,
-  UINT32 Size);
+KmScanOperationNew();
+
+VOID
+KmScanOperationUndo();
+
+VOID
+KmScanEntryNew(
+  PCHAR Address);
 
 ///////////////////////////////////////////////////////////////
 // Implementation
@@ -94,6 +112,32 @@ KmGetPhysicalMemoryRangeCount()
 }
 
 VOID
+KmIterateBytes(
+  PCHAR Address,
+  UINT32 Size)
+{
+  // Start byte scan
+  for (PCHAR ptr = Address; ptr <= ((Address + Size) - sNumberOfBytes); ptr++)
+  {
+    BOOL found = TRUE;
+
+    for (UINT32 j = 0; j < sNumberOfBytes; j++)
+    {
+      if (ptr[j] != sValue[j])
+      {
+        found = FALSE;
+        break;
+      }
+    }
+
+    if (found)
+    {
+      KmScanEntryNew(ptr);
+    }
+  }
+}
+
+VOID
 KmIteratePage(
   PHYSICAL_ADDRESS Address)
 {
@@ -102,7 +146,7 @@ KmIteratePage(
   {
     if (KmIsInPhysicalMemoryRange(Address))
     {
-      KmScanArrayOfBytes((PCHAR)page, 0X1000);
+      KmIterateBytes((PCHAR)page, 0X1000);
     }
   }
   else
@@ -121,7 +165,7 @@ KmIteratePageTable(
   {
     if (LargePage)
     {
-      //KmScanArrayOfBytes((PCHAR)pageTable, 0X1000000);
+      //KmIterateBytes((PCHAR)pageTable, 0X1000000);
     }
     else
     {
@@ -151,7 +195,7 @@ KmIteratePageDirectoryTable(
   {
     if (LargePage)
     {
-      //KmScanArrayOfBytes((PCHAR)pageDirectoryTable, 0X40000000);
+      //KmIterateBytes((PCHAR)pageDirectoryTable, 0X40000000);
     }
     else
     {
@@ -216,45 +260,60 @@ KmIteratePageMapLevel4Table(
 }
 
 VOID
-KmScanArrayOfBytes(
-  PCHAR Address,
-  UINT32 Size)
+KmScanOperationNew(
+  PCHAR Name)
 {
-  // Start byte scan
-  for (PCHAR ptr = Address; ptr <= ((Address + Size) - sNumberOfBytes); ptr++)
+  // Prepare operation entry
+  POPERATION_ENTRY scanOperation = ExAllocatePoolWithTag(NonPagedPool, sizeof(OPERATION_ENTRY), MEMORY_TAG);
+  if (scanOperation)
   {
-    BOOL found = TRUE;
-  
-    for (UINT32 j = 0; j < sNumberOfBytes; j++)
-    {
-      if (ptr[j] != sValue[j])
-      {
-        found = FALSE;
-        break;
-      }
-    }
-  
-    if (found)
-    {
-      // Insert scan result
-      PSCAN_ENTRY scanEntry = ExAllocatePoolWithTag(NonPagedPool, sizeof(SCAN_ENTRY), MEMORY_TAG);
-      if (scanEntry)
-      {
-        scanEntry->Address = ptr;
-        InsertTailList(&sScanList, &scanEntry->List);
+    // Copy name
+    RtlCopyMemory(scanOperation->Name, Name, 32);
 
-        // Increment scan count
-        sScanCount++;
-      }
-    }
+    // Setup scan list
+    InitializeListHead(&scanOperation->ScanList);
+
+    // Insert operation entry
+    InsertHeadList(&sOperationList, &scanOperation->List);
+
+    // Increment operation count
+    sOperationCount++;
+  }
+}
+
+VOID
+KmScanOperationUndo()
+{
+
+}
+
+VOID
+KmScanEntryNew(
+  PCHAR Address)
+{
+  // Prepare scan entry
+  PSCAN_ENTRY scanEntry = ExAllocatePoolWithTag(NonPagedPool, sizeof(SCAN_ENTRY), MEMORY_TAG);
+  if (scanEntry)
+  {
+    // Store address
+    scanEntry->Address = Address;
+
+    // Get operation entry
+    POPERATION_ENTRY operationEntry = CONTAINING_RECORD(sOperationList.Flink, OPERATION_ENTRY, List);
+
+    // Insert scan result
+    InsertHeadList(&operationEntry->ScanList, &scanEntry->List);
+
+    // Increment scan count
+    operationEntry->ScanCount++;
   }
 }
 
 VOID
 KmInitializeScanner()
 {
-  // Setup scan list
-  InitializeListHead(&sScanList);
+  // Setup operation list
+  InitializeListHead(&sOperationList);
 
   // Get physical memory ranges
   sPhysicalMemoryRange = MmGetPhysicalMemoryRanges();
@@ -283,46 +342,157 @@ KmResetScanner()
   sNumberOfBytes = 0;
   sValue = NULL;
 
-  // Free entries
-  while (IsListEmpty(&sScanList) == FALSE)
+  // Free operation entries
+  while (IsListEmpty(&sOperationList) == FALSE)
   {
-    PLIST_ENTRY listEntry = RemoveHeadList(&sScanList);
-    PSCAN_ENTRY scanEntry = CONTAINING_RECORD(listEntry, SCAN_ENTRY, List);
+    PLIST_ENTRY operationListEntry = RemoveHeadList(&sOperationList);
+    POPERATION_ENTRY operationEntry = CONTAINING_RECORD(operationListEntry, OPERATION_ENTRY, List);
 
-    ExFreePoolWithTag(scanEntry, MEMORY_TAG);
+    // Free scan entries
+    while (IsListEmpty(&operationEntry->ScanList) == FALSE)
+    {
+      PLIST_ENTRY scanListEntry = RemoveHeadList(&operationEntry->ScanList);
+      PSCAN_ENTRY scanEntry = CONTAINING_RECORD(scanListEntry, SCAN_ENTRY, List);
+
+      ExFreePoolWithTag(scanEntry, MEMORY_TAG);
+    }
+
+    ExFreePoolWithTag(operationEntry, MEMORY_TAG);
   }
 
-  // Reset scan list
-  InitializeListHead(&sScanList);
+  // Setup operation list
+  InitializeListHead(&sOperationList);
 
-  // Reset scan count
-  sScanCount = 0;
+  // Reset operation count
+  sOperationCount = 0;
 }
 
 VOID
-KmNewScan()
+KmFirstScanArrayOfBytes()
 {
+  // Create new scan operation
+  KmScanOperationNew("First Array Of Bytes");
+
   // Start iterating physical pages
   PHYSICAL_ADDRESS address = { .QuadPart = sProcess->DirectoryTableBase };
   KmIteratePageMapLevel4Table(address);
 }
 
 VOID
-KmPrintScanResults()
+KmNextChangedScan()
 {
-  LOG("Results:\n");
+  // Create new scan operation
+  KmScanOperationNew("Next Changed");
 
-  // Iterate scans
-  PLIST_ENTRY listEntry = sScanList.Flink;
-  while (listEntry != &sScanList)
+  // Get previous operation entry
+  POPERATION_ENTRY prevOperationEntry = CONTAINING_RECORD(sOperationList.Blink, OPERATION_ENTRY, List);
+
+  // Iterate previous scans
+  PLIST_ENTRY prevScanListEntry = prevOperationEntry->ScanList.Flink;
+  while (prevScanListEntry != &prevOperationEntry->ScanList)
   {
-    // Get scan entry
-    PSCAN_ENTRY scanEntry = CONTAINING_RECORD(listEntry, SCAN_ENTRY, List);
-    
-    // Print result
-    LOG("  %p\n", scanEntry->Address);
+    // Get previous scan entry
+    PSCAN_ENTRY prevScanEntry = CONTAINING_RECORD(prevScanListEntry, SCAN_ENTRY, List);
+
+    // Compare
+    BOOL match = TRUE;
+
+    for (UINT32 i = 0; i < sNumberOfBytes; i++)
+    {
+      if (prevScanEntry->Address[i] != sValue[i])
+      {
+        match = FALSE;
+        break;
+      }
+    }
+
+    if (!match)
+    {
+      KmScanEntryNew(prevScanEntry->Address);
+    }
 
     // Increment to the next record
-    listEntry = listEntry->Flink;
+    prevScanListEntry = prevScanListEntry->Flink;
+  }
+}
+
+VOID
+KmNextUnchangedScan()
+{
+  // Create new scan operation
+  KmScanOperationNew("Next Unchanged");
+
+  // Get previous operation entry
+  POPERATION_ENTRY prevOperationEntry = CONTAINING_RECORD(sOperationList.Blink, OPERATION_ENTRY, List);
+
+  // Iterate previous scans
+  PLIST_ENTRY prevScanListEntry = prevOperationEntry->ScanList.Flink;
+  while (prevScanListEntry != &prevOperationEntry->ScanList)
+  {
+    // Get previous scan entry
+    PSCAN_ENTRY prevScanEntry = CONTAINING_RECORD(prevScanListEntry, SCAN_ENTRY, List);
+  
+    // Compare
+    BOOL match = TRUE;
+
+    for (UINT32 i = 0; i < sNumberOfBytes; i++)
+    {  
+      if (prevScanEntry->Address[i] != sValue[i])
+      {
+        match = FALSE;
+        break;
+      }
+    }
+
+    if (match)
+    {
+      KmScanEntryNew(prevScanEntry->Address);
+    }
+  
+    // Increment to the next record
+    prevScanListEntry = prevScanListEntry->Flink;
+  }
+}
+
+VOID
+KmPrintScanResults()
+{
+  if (sOperationCount > 0)
+  {
+    // Iterate operations
+    UINT32 operationIndex = 0;
+    PLIST_ENTRY operationListEntry = sOperationList.Flink;
+    while (operationListEntry != &sOperationList)
+    {
+      // Get operation entry
+      POPERATION_ENTRY operationEntry = CONTAINING_RECORD(operationListEntry, OPERATION_ENTRY, List);
+
+      // Print operation
+      LOG("%u Operation: %s\n", operationIndex, operationEntry->Name);
+
+      // Iterate scans
+      UINT32 scanIndex = 0;
+      PLIST_ENTRY scanListEntry = operationEntry->ScanList.Flink;
+      while (scanListEntry != &operationEntry->ScanList)
+      {
+        // Get scan entry
+        PSCAN_ENTRY scanEntry = CONTAINING_RECORD(scanListEntry, SCAN_ENTRY, List);
+
+        // Print scan
+        LOG("  %10u %p %10d\n", scanIndex, scanEntry->Address, *(PINT32)scanEntry->Address);
+
+        // Increment operation index
+        scanIndex++;
+
+        // Increment to the next record
+        scanListEntry = scanListEntry->Flink;
+      }
+
+      // Increment operation index
+      operationIndex++;
+
+      // Increment to the next record
+      operationListEntry = operationListEntry->Flink;
+    }
   }
 }

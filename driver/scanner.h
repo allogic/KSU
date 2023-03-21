@@ -21,7 +21,13 @@ VOID
 KmResetScanner();
 
 VOID
-KmNewScan();
+KmFirstScanArrayOfBytes();
+
+VOID
+KmNextChangedScan();
+
+VOID
+KmNextUnchangedScan();
 
 VOID
 KmPrintScanResults();

@@ -52,7 +52,7 @@ KmScanRequest(
       status = PsLookupProcessByProcessId((HANDLE)requestScan.Pid, &process);
       if (NT_SUCCESS(status))
       {
-        LOG("Found process %u\n", requestScan.Pid);
+        LOG("Found process\n");
 
         // Allocate buffer to hold value to be scanned for
         PCHAR requestValue = ExAllocatePoolWithTag(NonPagedPool, requestScan.NumberOfBytes, MEMORY_TAG);
@@ -63,22 +63,31 @@ KmScanRequest(
           status = KmRecv(Socket, requestValue, &requestValueSize, 0);
           if (NT_SUCCESS(status))
           {
-            LOG("Received %u bytes to scan for\n", requestScan.NumberOfBytes);
-            LOG("Scanning...\n");
-
             // Configure scanner
             KmConfigureScanner(requestScan.Pid, process, requestScan.NumberOfBytes, requestValue);
 
-            // Start scanning pages
-            KmNewScan();
+            LOG("Scanner configured\n");
+
+            // Receive scan type and start scanning
+            SCAN_TYPE scanType = { 0 };
+            UINT32 scanTypeSize = sizeof(scanType);
+            status = KmRecv(Socket, &scanType, &scanTypeSize, 0);
+            if (NT_SUCCESS(status))
+            {
+              LOG("Scanner...\n");
+              switch (scanType)
+              {
+                case SCAN_TYPE_FIRST_ARRAY_OF_BYTES: KmFirstScanArrayOfBytes(); break;
+                case SCAN_TYPE_NEXT_CHANGED: KmNextChangedScan(); break;
+                case SCAN_TYPE_NEXT_UNCHANGED: KmNextUnchangedScan(); break;
+              }
+            }
 
             // Print current findings
             KmPrintScanResults();
 
             // Reset previous scans
-            KmResetScanner();
-
-            LOG("Finished scan\n");
+            //KmResetScanner();
           }
 
           ExFreePoolWithTag(requestValue, MEMORY_TAG);
@@ -151,10 +160,12 @@ KmTcpServerThread(
               REQUEST_TYPE requestType = { 0 };
               UINT32 requestTypeSize = sizeof(requestType);
               status = KmRecv(clientSocket, &requestType, &requestTypeSize, 0);
-
-              switch (requestType)
+              if (NT_SUCCESS(status))
               {
-                case REQUEST_TYPE_SCAN: status = KmScanRequest(clientSocket); break;
+                switch (requestType)
+                {
+                  case REQUEST_TYPE_SCAN: status = KmScanRequest(clientSocket); break;
+                }
               }
 
               //UINT32 sendBufferSize = sizeof(sendBuffer);
