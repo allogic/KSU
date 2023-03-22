@@ -8,15 +8,18 @@
 typedef struct _SCAN_ENTRY
 {
   LIST_ENTRY List;
-  PCHAR Address;
+  PVOID Address;
 } SCAN_ENTRY, * PSCAN_ENTRY;
 
 typedef struct _OPERATION_ENTRY
 {
   LIST_ENTRY List;
   CHAR Name[32];
-  LIST_ENTRY ScanList;
+  PVOID DirectoryTableBase;
+  UINT32 NumberOfBytes;
+  PBYTE Bytes;
   UINT32 ScanCount;
+  LIST_ENTRY ScanList;
 } OPERATION_ENTRY, * POPERATION_ENTRY;
 
 ///////////////////////////////////////////////////////////////
@@ -26,13 +29,8 @@ typedef struct _OPERATION_ENTRY
 static PPHYSICAL_MEMORY_RANGE sPhysicalMemoryRange = NULL;
 static UINT32 sPhysicalMemoryRangeCount = 0;
 
-static LIST_ENTRY sOperationList = { 0 };
 static UINT32 sOperationCount = 0;
-
-static UINT32 sPid = 0;
-static PEPROCESS sProcess = NULL;
-static UINT32 sNumberOfBytes = 0;
-static PCHAR sValue = NULL;
+static LIST_ENTRY sOperationList = { 0 };
 
 ///////////////////////////////////////////////////////////////
 // Private API
@@ -47,7 +45,7 @@ KmGetPhysicalMemoryRangeCount();
 
 VOID
 KmIterateBytes(
-  PCHAR Address,
+  PBYTE Address,
   UINT32 Size);
 
 VOID
@@ -73,14 +71,20 @@ KmIteratePageMapLevel4Table(
   PHYSICAL_ADDRESS Address);
 
 VOID
-KmScanOperationNew();
+KmNewScanOperation();
 
 VOID
-KmScanOperationUndo();
+KmCopyPrevOperationConfiguration();
+
+POPERATION_ENTRY
+KmGetCurrentScanOperation();
+
+POPERATION_ENTRY
+KmGetPreviousScanOperation();
 
 VOID
-KmScanEntryNew(
-  PCHAR Address);
+KmNewScanEntry(
+  PVOID Address);
 
 ///////////////////////////////////////////////////////////////
 // Implementation
@@ -113,17 +117,20 @@ KmGetPhysicalMemoryRangeCount()
 
 VOID
 KmIterateBytes(
-  PCHAR Address,
+  PBYTE Address,
   UINT32 Size)
 {
+  // Get operation entry
+  POPERATION_ENTRY operationEntry = KmGetCurrentScanOperation();
+
   // Start byte scan
-  for (PCHAR ptr = Address; ptr <= ((Address + Size) - sNumberOfBytes); ptr++)
+  for (PBYTE ptr = Address; ptr <= ((Address + Size) - operationEntry->NumberOfBytes); ptr++)
   {
     BOOL found = TRUE;
 
-    for (UINT32 j = 0; j < sNumberOfBytes; j++)
+    for (UINT32 j = 0; j < operationEntry->NumberOfBytes; j++)
     {
-      if (ptr[j] != sValue[j])
+      if (ptr[j] != operationEntry->Bytes[j])
       {
         found = FALSE;
         break;
@@ -132,7 +139,7 @@ KmIterateBytes(
 
     if (found)
     {
-      KmScanEntryNew(ptr);
+      KmNewScanEntry(ptr);
     }
   }
 }
@@ -146,7 +153,7 @@ KmIteratePage(
   {
     if (KmIsInPhysicalMemoryRange(Address))
     {
-      KmIterateBytes((PCHAR)page, 0X1000);
+      KmIterateBytes((PBYTE)page, 0X1000);
     }
   }
   else
@@ -165,7 +172,7 @@ KmIteratePageTable(
   {
     if (LargePage)
     {
-      //KmIterateBytes((PCHAR)pageTable, 0X1000000);
+      //KmIterateBytes((PBYTE)pageTable, 0X1000000);
     }
     else
     {
@@ -195,7 +202,7 @@ KmIteratePageDirectoryTable(
   {
     if (LargePage)
     {
-      //KmIterateBytes((PCHAR)pageDirectoryTable, 0X40000000);
+      //KmIterateBytes((PBYTE)pageDirectoryTable, 0X40000000);
     }
     else
     {
@@ -260,13 +267,16 @@ KmIteratePageMapLevel4Table(
 }
 
 VOID
-KmScanOperationNew(
+KmNewScanOperation(
   PCHAR Name)
 {
   // Prepare operation entry
   POPERATION_ENTRY scanOperation = ExAllocatePoolWithTag(NonPagedPool, sizeof(OPERATION_ENTRY), MEMORY_TAG);
   if (scanOperation)
   {
+    // Zero operation entry
+    RtlZeroMemory(scanOperation, sizeof(OPERATION_ENTRY));
+
     // Copy name
     RtlCopyMemory(scanOperation->Name, Name, 32);
 
@@ -282,24 +292,78 @@ KmScanOperationNew(
 }
 
 VOID
-KmScanOperationUndo()
+KmCopyPrevOperationConfiguration()
 {
+  // Get operation entries
+  POPERATION_ENTRY currOperationEntry = KmGetCurrentScanOperation();
+  POPERATION_ENTRY prevOperationEntry = KmGetPreviousScanOperation();
 
+  currOperationEntry->DirectoryTableBase = prevOperationEntry->DirectoryTableBase;
+  currOperationEntry->NumberOfBytes = prevOperationEntry->NumberOfBytes;
+  currOperationEntry->Bytes = ExAllocatePoolWithTag(NonPagedPool, prevOperationEntry->NumberOfBytes, MEMORY_TAG);
+  if (currOperationEntry->Bytes && prevOperationEntry->Bytes)
+  {
+    RtlCopyMemory(currOperationEntry->Bytes, prevOperationEntry->Bytes, prevOperationEntry->NumberOfBytes);
+  }
 }
 
 VOID
-KmScanEntryNew(
-  PCHAR Address)
+KmUndoScanOperation()
+{
+  // Remove operation entry
+  PLIST_ENTRY operationListEntry = RemoveHeadList(&sOperationList);
+  POPERATION_ENTRY operationEntry = CONTAINING_RECORD(operationListEntry, OPERATION_ENTRY, List);
+
+  // Free scan value
+  if (operationEntry->Bytes)
+  {
+    ExFreePoolWithTag(operationEntry->Bytes, MEMORY_TAG);
+  }
+
+  // Free scan entries
+  while (IsListEmpty(&operationEntry->ScanList) == FALSE)
+  {
+    PLIST_ENTRY scanListEntry = RemoveHeadList(&operationEntry->ScanList);
+    PSCAN_ENTRY scanEntry = CONTAINING_RECORD(scanListEntry, SCAN_ENTRY, List);
+
+    ExFreePoolWithTag(scanEntry, MEMORY_TAG);
+  }
+
+  // Free operation entry
+  ExFreePoolWithTag(operationEntry, MEMORY_TAG);
+
+  // Decrement operation count
+  sOperationCount--;
+}
+
+POPERATION_ENTRY
+KmGetCurrentScanOperation()
+{
+  return CONTAINING_RECORD(sOperationList.Flink, OPERATION_ENTRY, List);
+}
+
+POPERATION_ENTRY
+KmGetPreviousScanOperation()
+{
+  return CONTAINING_RECORD(sOperationList.Flink->Flink, OPERATION_ENTRY, List);
+}
+
+VOID
+KmNewScanEntry(
+  PVOID Address)
 {
   // Prepare scan entry
   PSCAN_ENTRY scanEntry = ExAllocatePoolWithTag(NonPagedPool, sizeof(SCAN_ENTRY), MEMORY_TAG);
   if (scanEntry)
   {
+    // Zero scan entry
+    RtlZeroMemory(scanEntry, sizeof(SCAN_ENTRY));
+
     // Store address
     scanEntry->Address = Address;
 
     // Get operation entry
-    POPERATION_ENTRY operationEntry = CONTAINING_RECORD(sOperationList.Flink, OPERATION_ENTRY, List);
+    POPERATION_ENTRY operationEntry = KmGetCurrentScanOperation();
 
     // Insert scan result
     InsertHeadList(&operationEntry->ScanList, &scanEntry->List);
@@ -321,33 +385,20 @@ KmInitializeScanner()
 }
 
 VOID
-KmConfigureScanner(
-  UINT32 Pid,
-  PEPROCESS Process,
-  UINT32 NumberOfBytes,
-  PCHAR Value)
-{
-  sPid = Pid;
-  sProcess = Process;
-  sNumberOfBytes = NumberOfBytes;
-  sValue = Value;
-}
-
-VOID
 KmResetScanner()
 {
-  // Reset configuration
-  sPid = 0;
-  sProcess = NULL;
-  sNumberOfBytes = 0;
-  sValue = NULL;
-
   // Free operation entries
   while (IsListEmpty(&sOperationList) == FALSE)
   {
     PLIST_ENTRY operationListEntry = RemoveHeadList(&sOperationList);
     POPERATION_ENTRY operationEntry = CONTAINING_RECORD(operationListEntry, OPERATION_ENTRY, List);
 
+    // Free scan value
+    if (operationEntry->Bytes)
+    {
+      ExFreePoolWithTag(operationEntry->Bytes, MEMORY_TAG);
+    }
+      
     // Free scan entries
     while (IsListEmpty(&operationEntry->ScanList) == FALSE)
     {
@@ -368,24 +419,40 @@ KmResetScanner()
 }
 
 VOID
-KmFirstScanArrayOfBytes()
+KmFirstScanArrayOfBytes(
+  PVOID DirectoryTableBase,
+  UINT32 NumberOfBytes,
+  PBYTE Bytes)
 {
   // Create new scan operation
-  KmScanOperationNew("First Array Of Bytes");
+  KmNewScanOperation("First Array Of Bytes");
+
+  // Configure current operation
+  POPERATION_ENTRY operationEntry = KmGetCurrentScanOperation();
+  operationEntry->DirectoryTableBase = DirectoryTableBase;
+  operationEntry->NumberOfBytes = NumberOfBytes;
+  operationEntry->Bytes = ExAllocatePoolWithTag(NonPagedPool, NumberOfBytes, MEMORY_TAG);
+  if (operationEntry->Bytes && Bytes)
+  {
+    RtlCopyMemory(operationEntry->Bytes, Bytes, NumberOfBytes);
+  }
 
   // Start iterating physical pages
-  PHYSICAL_ADDRESS address = { .QuadPart = sProcess->DirectoryTableBase };
+  PHYSICAL_ADDRESS address = { .QuadPart = (UINT64)operationEntry->DirectoryTableBase };
   KmIteratePageMapLevel4Table(address);
 }
 
 VOID
-KmNextChangedScan()
+KmNextScanChanged()
 {
   // Create new scan operation
-  KmScanOperationNew("Next Changed");
+  KmNewScanOperation("Next Changed");
+
+  // Copy previous configuration
+  KmCopyPrevOperationConfiguration();
 
   // Get previous operation entry
-  POPERATION_ENTRY prevOperationEntry = CONTAINING_RECORD(sOperationList.Blink, OPERATION_ENTRY, List);
+  POPERATION_ENTRY prevOperationEntry = KmGetPreviousScanOperation();
 
   // Iterate previous scans
   PLIST_ENTRY prevScanListEntry = prevOperationEntry->ScanList.Flink;
@@ -397,9 +464,9 @@ KmNextChangedScan()
     // Compare
     BOOL match = TRUE;
 
-    for (UINT32 i = 0; i < sNumberOfBytes; i++)
+    for (UINT32 i = 0; i < prevOperationEntry->NumberOfBytes; i++)
     {
-      if (prevScanEntry->Address[i] != sValue[i])
+      if (((PBYTE)prevScanEntry->Address)[i] != prevOperationEntry->Bytes[i])
       {
         match = FALSE;
         break;
@@ -408,7 +475,7 @@ KmNextChangedScan()
 
     if (!match)
     {
-      KmScanEntryNew(prevScanEntry->Address);
+      KmNewScanEntry(prevScanEntry->Address);
     }
 
     // Increment to the next record
@@ -417,13 +484,16 @@ KmNextChangedScan()
 }
 
 VOID
-KmNextUnchangedScan()
+KmNextScanUnchanged()
 {
   // Create new scan operation
-  KmScanOperationNew("Next Unchanged");
+  KmNewScanOperation("Next Unchanged");
+
+  // Copy previous configuration
+  KmCopyPrevOperationConfiguration();
 
   // Get previous operation entry
-  POPERATION_ENTRY prevOperationEntry = CONTAINING_RECORD(sOperationList.Blink, OPERATION_ENTRY, List);
+  POPERATION_ENTRY prevOperationEntry = KmGetPreviousScanOperation();
 
   // Iterate previous scans
   PLIST_ENTRY prevScanListEntry = prevOperationEntry->ScanList.Flink;
@@ -435,9 +505,9 @@ KmNextUnchangedScan()
     // Compare
     BOOL match = TRUE;
 
-    for (UINT32 i = 0; i < sNumberOfBytes; i++)
-    {  
-      if (prevScanEntry->Address[i] != sValue[i])
+    for (UINT32 i = 0; i < prevOperationEntry->NumberOfBytes; i++)
+    {
+      if (((PBYTE)prevScanEntry->Address)[i] != prevOperationEntry->Bytes[i])
       {
         match = FALSE;
         break;
@@ -446,7 +516,7 @@ KmNextUnchangedScan()
 
     if (match)
     {
-      KmScanEntryNew(prevScanEntry->Address);
+      KmNewScanEntry(prevScanEntry->Address);
     }
   
     // Increment to the next record
@@ -460,7 +530,6 @@ KmPrintScanResults()
   if (sOperationCount > 0)
   {
     // Iterate operations
-    UINT32 operationIndex = 0;
     PLIST_ENTRY operationListEntry = sOperationList.Flink;
     while (operationListEntry != &sOperationList)
     {
@@ -468,7 +537,13 @@ KmPrintScanResults()
       POPERATION_ENTRY operationEntry = CONTAINING_RECORD(operationListEntry, OPERATION_ENTRY, List);
 
       // Print operation
-      LOG("%u Operation: %s\n", operationIndex, operationEntry->Name);
+      LOG("Operation:\n", );
+      LOG("  Name: %s\n", operationEntry->Name);
+      LOG("  DirectoryTableBase: %p\n", operationEntry->DirectoryTableBase);
+      LOG("  NumberOfBytes: %u\n", operationEntry->NumberOfBytes);
+      LOG("  Bytes: %p\n", operationEntry->Bytes);
+      LOG("  ScanCount: %u\n", operationEntry->ScanCount);
+      LOG("  ScanList: %p\n", operationEntry->ScanList.Flink);
 
       // Iterate scans
       UINT32 scanIndex = 0;
@@ -479,7 +554,7 @@ KmPrintScanResults()
         PSCAN_ENTRY scanEntry = CONTAINING_RECORD(scanListEntry, SCAN_ENTRY, List);
 
         // Print scan
-        LOG("  %10u %p %10d\n", scanIndex, scanEntry->Address, *(PINT32)scanEntry->Address);
+        LOG("    %10u %p %u\n", scanIndex, scanEntry->Address, *(PINT32)scanEntry->Address);
 
         // Increment operation index
         scanIndex++;
@@ -487,9 +562,6 @@ KmPrintScanResults()
         // Increment to the next record
         scanListEntry = scanListEntry->Flink;
       }
-
-      // Increment operation index
-      operationIndex++;
 
       // Increment to the next record
       operationListEntry = operationListEntry->Flink;

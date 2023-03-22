@@ -52,52 +52,45 @@ KmScanRequest(
       status = PsLookupProcessByProcessId((HANDLE)requestScan.Pid, &process);
       if (NT_SUCCESS(status))
       {
-        LOG("Found process\n");
-
-        // Allocate buffer to hold value to be scanned for
-        PCHAR requestValue = ExAllocatePoolWithTag(NonPagedPool, requestScan.NumberOfBytes, MEMORY_TAG);
-        if (requestValue)
+        // Allocate buffer to hold bytes to scan for
+        PBYTE requestBytes = ExAllocatePoolWithTag(NonPagedPool, requestScan.NumberOfBytes, MEMORY_TAG);
+        if (requestBytes)
         {
           // Receive bytes to scan for
-          UINT32 requestValueSize = requestScan.NumberOfBytes;
-          status = KmRecv(Socket, requestValue, &requestValueSize, 0);
+          UINT32 requestBytesSize = requestScan.NumberOfBytes;
+          status = KmRecv(Socket, requestBytes, &requestBytesSize, 0);
           if (NT_SUCCESS(status))
           {
-            // Configure scanner
-            KmConfigureScanner(requestScan.Pid, process, requestScan.NumberOfBytes, requestValue);
-
-            LOG("Scanner configured\n");
-
             // Receive scan type and start scanning
             SCAN_TYPE scanType = { 0 };
             UINT32 scanTypeSize = sizeof(scanType);
             status = KmRecv(Socket, &scanType, &scanTypeSize, 0);
             if (NT_SUCCESS(status))
             {
-              LOG("Scanner...\n");
               switch (scanType)
               {
-                case SCAN_TYPE_FIRST_ARRAY_OF_BYTES: KmFirstScanArrayOfBytes(); break;
-                case SCAN_TYPE_NEXT_CHANGED: KmNextChangedScan(); break;
-                case SCAN_TYPE_NEXT_UNCHANGED: KmNextUnchangedScan(); break;
+                case SCAN_TYPE_RESET: KmResetScanner(); break;
+                case SCAN_TYPE_FIRST_ARRAY_OF_BYTES: KmFirstScanArrayOfBytes((PVOID)process->DirectoryTableBase, requestScan.NumberOfBytes, requestBytes); break;
+                case SCAN_TYPE_NEXT_CHANGED: KmNextScanChanged(); break;
+                case SCAN_TYPE_NEXT_UNCHANGED: KmNextScanUnchanged(); break;
+                case SCAN_TYPE_UNDO: KmUndoScanOperation(); break;
               }
             }
 
             // Print current findings
             KmPrintScanResults();
 
-            // Reset previous scans
-            //KmResetScanner();
+            // Send results to client
+            //UINT32 sendBufferSize = sizeof(sendBuffer);
+            //status = KmSend(Socket, sendBuffer, &sendBufferSize, 0);
           }
 
-          ExFreePoolWithTag(requestValue, MEMORY_TAG);
+          // Free requested bytes
+          ExFreePoolWithTag(requestBytes, MEMORY_TAG);
         }
 
         // Close process
         ObDereferenceObject(process);
-
-        // Operation completed successfully
-        status = STATUS_SUCCESS;
       }
       else
       {
@@ -167,9 +160,6 @@ KmTcpServerThread(
                   case REQUEST_TYPE_SCAN: status = KmScanRequest(clientSocket); break;
                 }
               }
-
-              //UINT32 sendBufferSize = sizeof(sendBuffer);
-              //status = KmSend(clientSocket, sendBuffer, &sendBufferSize, 0);
 
               // Close client socket
               KmCloseSocket(clientSocket);

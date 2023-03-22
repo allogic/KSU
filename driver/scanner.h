@@ -11,23 +11,22 @@ VOID
 KmInitializeScanner();
 
 VOID
-KmConfigureScanner(
-  UINT32 Pid,
-  PEPROCESS Process,
-  UINT32 NumberOfBytes,
-  PCHAR Value);
-
-VOID
 KmResetScanner();
 
 VOID
-KmFirstScanArrayOfBytes();
+KmFirstScanArrayOfBytes(
+  PVOID DirectoryTableBase,
+  UINT32 NumberOfBytes,
+  PBYTE Bytes);
 
 VOID
-KmNextChangedScan();
+KmNextScanChanged();
 
 VOID
-KmNextUnchangedScan();
+KmNextScanUnchanged();
+
+VOID
+KmUndoScanOperation();
 
 VOID
 KmPrintScanResults();
