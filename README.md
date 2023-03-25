@@ -16,7 +16,7 @@ kdu.exe -dse 6                                        // enable DSE (some AC's r
 interface.exe                                         // issue a variety of commands
 ```
 
-An alternative way is to disable `Driver Signature Enforcement` by holding `Shift` and clicking reboot. Once windows is booting up again click `Troubleshoot/Advanced Options/Startup Settings/Restart`. Almost every anti-cheat software doesn't start since `Driver Signature Enforcement` has been disabled permanently till the next reboot.
+An alternative way is to disable `Driver Signature Enforcement` by holding `Shift` and reboot. Once windows is booting up again click `Troubleshoot/Advanced Options/Startup Settings/Restart`. Almost every anti-cheat software doesn't start since `Driver Signature Enforcement` has been disabled permanently till the next reboot.
 
 # API
 
