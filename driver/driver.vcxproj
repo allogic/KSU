@@ -198,16 +198,24 @@
   <ItemGroup>
     <ClInclude Include="core.h" />
     <ClInclude Include="except.h" />
+    <ClInclude Include="findaddr.h" />
     <ClInclude Include="intercom.h" />
+    <ClInclude Include="memory.h" />
+    <ClInclude Include="pagetbl.h" />
     <ClInclude Include="scanner.h" />
     <ClInclude Include="socket.h" />
+    <ClInclude Include="thread.h" />
     <ClInclude Include="undoc.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="except.c" />
+    <ClCompile Include="findaddr.c" />
     <ClCompile Include="main.c" />
+    <ClCompile Include="memory.c" />
+    <ClCompile Include="pagetbl.c" />
     <ClCompile Include="scanner.c" />
     <ClCompile Include="socket.c" />
+    <ClCompile Include="thread.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

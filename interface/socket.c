@@ -169,3 +169,53 @@ UmRecv(
 
   return status;
 }
+
+INT32
+UmSendSafe(
+  PASOCKET Socket,
+  PVOID Buffer,
+  UINT32 Length,
+  UINT32 Flags)
+{
+  // Send full buffer
+  UINT32 bytesLeft = 0;
+  while (bytesLeft < Length)
+  {
+    INT32 status = send(Socket->Socket, ((PBYTE)Buffer) + bytesLeft, Length - bytesLeft, Flags);
+    if (status == SOCKET_ERROR)
+    {
+      break;
+    }
+    else
+    {
+      bytesLeft += status;
+    }
+  }
+
+  return bytesLeft - Length;
+}
+
+INT32
+UmRecvSafe(
+  PASOCKET Socket,
+  PVOID Buffer,
+  UINT32 Length,
+  UINT32 Flags)
+{
+  // Receive full buffer
+  UINT32 bytesLeft = 0;
+  while (bytesLeft < Length)
+  {
+    INT32 status = recv(Socket->Socket, ((PBYTE)Buffer) + bytesLeft, Length - bytesLeft, Flags);
+    if (status == SOCKET_ERROR)
+    {
+      break;
+    }
+    else
+    {
+      bytesLeft += status;
+    }
+  }
+
+  return bytesLeft - Length;
+}

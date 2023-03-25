@@ -1,5 +1,5 @@
 #include "scanner.h"
-#include "undoc.h"
+#include "pagetbl.h"
 
 ///////////////////////////////////////////////////////////////
 // Private Types
@@ -15,7 +15,7 @@ typedef struct _OPERATION_ENTRY
 {
   LIST_ENTRY List;
   CHAR Name[32];
-  PVOID DirectoryTableBase;
+  PVOID PageTableBase;
   UINT32 NumberOfBytes;
   PBYTE Bytes;
   UINT32 ScanCount;
@@ -26,9 +26,6 @@ typedef struct _OPERATION_ENTRY
 // Private Variables
 ///////////////////////////////////////////////////////////////
 
-static PPHYSICAL_MEMORY_RANGE sPhysicalMemoryRange = NULL;
-static UINT32 sPhysicalMemoryRangeCount = 0;
-
 static UINT32 sOperationCount = 0;
 static LIST_ENTRY sOperationList = { 0 };
 
@@ -36,39 +33,10 @@ static LIST_ENTRY sOperationList = { 0 };
 // Private API
 ///////////////////////////////////////////////////////////////
 
-BOOLEAN
-KmIsInPhysicalMemoryRange(
-  PHYSICAL_ADDRESS Address);
-
-UINT32
-KmGetPhysicalMemoryRangeCount();
-
 VOID
 KmIterateBytes(
-  PBYTE Address,
+  PVOID Address,
   UINT32 Size);
-
-VOID
-KmIteratePage(
-  PHYSICAL_ADDRESS Address);
-
-VOID
-KmIteratePageTable(
-  PHYSICAL_ADDRESS Address,
-  BOOLEAN LargePage);
-
-VOID
-KmIteratePageDirectoryTable(
-  PHYSICAL_ADDRESS Address,
-  BOOLEAN LargePage);
-
-VOID
-KmIteratePageDirectoryPointerTable(
-  PHYSICAL_ADDRESS Address);
-
-VOID
-KmIteratePageMapLevel4Table(
-  PHYSICAL_ADDRESS Address);
 
 VOID
 KmNewScanOperation();
@@ -90,41 +58,16 @@ KmNewScanEntry(
 // Implementation
 ///////////////////////////////////////////////////////////////
 
-BOOLEAN
-KmIsInPhysicalMemoryRange(
-  PHYSICAL_ADDRESS Address)
-{
-  for (UINT64 i = 0; i < sPhysicalMemoryRangeCount; i++)
-  {
-    if ((Address.QuadPart >= sPhysicalMemoryRange[i].BaseAddress.QuadPart) && (Address.QuadPart <= sPhysicalMemoryRange[i].BaseAddress.QuadPart + sPhysicalMemoryRange[i].NumberOfBytes.QuadPart))
-    {
-      return TRUE;
-    }
-  }
-
-  return FALSE;
-}
-
-UINT32
-KmGetPhysicalMemoryRangeCount()
-{
-  UINT32 count = 0;
-
-  while (sPhysicalMemoryRange[count].BaseAddress.QuadPart || sPhysicalMemoryRange[count].NumberOfBytes.QuadPart) count++;
-
-  return count;
-}
-
 VOID
 KmIterateBytes(
-  PBYTE Address,
+  PVOID Address,
   UINT32 Size)
 {
   // Get operation entry
   POPERATION_ENTRY operationEntry = KmGetCurrentScanOperation();
 
   // Start byte scan
-  for (PBYTE ptr = Address; ptr <= ((Address + Size) - operationEntry->NumberOfBytes); ptr++)
+  for (PBYTE ptr = Address; ptr <= ((((PBYTE)Address) + Size) - operationEntry->NumberOfBytes); ptr++)
   {
     BOOL found = TRUE;
 
@@ -141,128 +84,6 @@ KmIterateBytes(
     {
       KmNewScanEntry(ptr);
     }
-  }
-}
-
-VOID
-KmIteratePage(
-  PHYSICAL_ADDRESS Address)
-{
-  PVOID page = MmGetVirtualForPhysical(Address);
-  if (page && MmIsAddressValid(page))
-  {
-    if (KmIsInPhysicalMemoryRange(Address))
-    {
-      KmIterateBytes((PBYTE)page, 0X1000);
-    }
-  }
-  else
-  {
-    //LOG("Invalid page\n");
-  }
-}
-
-VOID
-KmIteratePageTable(
-  PHYSICAL_ADDRESS Address,
-  BOOLEAN LargePage)
-{
-  PPT pageTable = (PPT)MmGetVirtualForPhysical(Address);
-  if (pageTable && MmIsAddressValid(pageTable))
-  {
-    if (LargePage)
-    {
-      //KmIterateBytes((PBYTE)pageTable, 0X1000000);
-    }
-    else
-    {
-      for (UINT32 i = 0; i < 512; i++)
-      {
-        if (pageTable[i].Flags.Present)
-        {
-          PHYSICAL_ADDRESS address = { .QuadPart = pageTable[i].Flags.PageFrameNumber << 12 };
-          KmIteratePage(address);
-        }
-      }
-    }
-  }
-  else
-  {
-    //LOG("Invalid page table\n");
-  }
-}
-
-VOID
-KmIteratePageDirectoryTable(
-  PHYSICAL_ADDRESS Address,
-  BOOLEAN LargePage)
-{
-  PPDT pageDirectoryTable = (PPDT)MmGetVirtualForPhysical(Address);
-  if (pageDirectoryTable && MmIsAddressValid(pageDirectoryTable))
-  {
-    if (LargePage)
-    {
-      //KmIterateBytes((PBYTE)pageDirectoryTable, 0X40000000);
-    }
-    else
-    {
-      for (UINT32 i = 0; i < 512; i++)
-      {
-        if (pageDirectoryTable[i].Flags.Present)
-        {
-          PHYSICAL_ADDRESS address = { .QuadPart = pageDirectoryTable[i].Flags.PageFrameNumber << 12 };
-          KmIteratePageTable(address, (BOOLEAN)pageDirectoryTable[i].Flags.LargePage);
-        }
-      }
-    }
-  }
-  else
-  {
-    //LOG("Invalid page directory table\n");
-  }
-}
-
-VOID
-KmIteratePageDirectoryPointerTable(
-  PHYSICAL_ADDRESS Address)
-{
-  PPDPT pageDirectoryPointerTable = (PPDPT)MmGetVirtualForPhysical(Address);
-  if (pageDirectoryPointerTable && MmIsAddressValid(pageDirectoryPointerTable))
-  {
-    for (UINT32 i = 0; i < 512; i++)
-    {
-      if (pageDirectoryPointerTable[i].Flags.Present)
-      {
-        PHYSICAL_ADDRESS address = { .QuadPart = pageDirectoryPointerTable[i].Flags.PageFrameNumber << 12 };
-        KmIteratePageDirectoryTable(address, (BOOLEAN)pageDirectoryPointerTable[i].Flags.LargePage);
-      }
-    }
-  }
-  else
-  {
-    //LOG("Invalid page directory pointer table\n");
-  }
-}
-
-VOID
-KmIteratePageMapLevel4Table(
-  PHYSICAL_ADDRESS Address)
-{
-  PPML4T pageMapLevel4Table = (PPML4T)MmGetVirtualForPhysical(Address);
-  if (pageMapLevel4Table && MmIsAddressValid(pageMapLevel4Table))
-  {
-    for (UINT32 i = 0; i < 512; i++)
-    {
-      if (pageMapLevel4Table[i].Flags.Present)
-      {
-        PHYSICAL_ADDRESS address = { .QuadPart = pageMapLevel4Table[i].Flags.PageFrameNumber << 12 };
-        KmIteratePageDirectoryPointerTable(address);
-      }
-    }
-  }
-  else
-  {
-    //LOG("Invalid page map level 4 table\n");
   }
 }
 
@@ -298,7 +119,7 @@ KmCopyPrevOperationConfiguration()
   POPERATION_ENTRY currOperationEntry = KmGetCurrentScanOperation();
   POPERATION_ENTRY prevOperationEntry = KmGetPreviousScanOperation();
 
-  currOperationEntry->DirectoryTableBase = prevOperationEntry->DirectoryTableBase;
+  currOperationEntry->PageTableBase = prevOperationEntry->PageTableBase;
   currOperationEntry->NumberOfBytes = prevOperationEntry->NumberOfBytes;
   currOperationEntry->Bytes = ExAllocatePoolWithTag(NonPagedPool, prevOperationEntry->NumberOfBytes, MEMORY_TAG);
   if (currOperationEntry->Bytes && prevOperationEntry->Bytes)
@@ -378,10 +199,6 @@ KmInitializeScanner()
 {
   // Setup operation list
   InitializeListHead(&sOperationList);
-
-  // Get physical memory ranges
-  sPhysicalMemoryRange = MmGetPhysicalMemoryRanges();
-  sPhysicalMemoryRangeCount = KmGetPhysicalMemoryRangeCount();
 }
 
 VOID
@@ -420,7 +237,7 @@ KmResetScanner()
 
 VOID
 KmFirstScanArrayOfBytes(
-  PVOID DirectoryTableBase,
+  PVOID PageTableBase,
   UINT32 NumberOfBytes,
   PBYTE Bytes)
 {
@@ -429,7 +246,7 @@ KmFirstScanArrayOfBytes(
 
   // Configure current operation
   POPERATION_ENTRY operationEntry = KmGetCurrentScanOperation();
-  operationEntry->DirectoryTableBase = DirectoryTableBase;
+  operationEntry->PageTableBase = PageTableBase;
   operationEntry->NumberOfBytes = NumberOfBytes;
   operationEntry->Bytes = ExAllocatePoolWithTag(NonPagedPool, NumberOfBytes, MEMORY_TAG);
   if (operationEntry->Bytes && Bytes)
@@ -437,9 +254,8 @@ KmFirstScanArrayOfBytes(
     RtlCopyMemory(operationEntry->Bytes, Bytes, NumberOfBytes);
   }
 
-  // Start iterating physical pages
-  PHYSICAL_ADDRESS address = { .QuadPart = (UINT64)operationEntry->DirectoryTableBase };
-  KmIteratePageMapLevel4Table(address);
+  // Start scanning process pages
+  KmScanProcessPages(PageTableBase, KmIterateBytes);
 }
 
 VOID
@@ -539,7 +355,7 @@ KmPrintScanResults()
       // Print operation
       LOG("Operation:\n", );
       LOG("  Name: %s\n", operationEntry->Name);
-      LOG("  DirectoryTableBase: %p\n", operationEntry->DirectoryTableBase);
+      LOG("  PageTableBase: %p\n", operationEntry->PageTableBase);
       LOG("  NumberOfBytes: %u\n", operationEntry->NumberOfBytes);
       LOG("  Bytes: %p\n", operationEntry->Bytes);
       LOG("  ScanCount: %u\n", operationEntry->ScanCount);

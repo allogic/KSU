@@ -3,12 +3,369 @@
 #include "socket.h"
 #include "intercom.h"
 #include "except.h"
+#include "strconv.h"
+
+///////////////////////////////////////////////////////////////
+// Private API
+///////////////////////////////////////////////////////////////
+
+REQUEST_TYPE
+UmRequestNameToType(
+  PCHAR Name);
+
+SCAN_TYPE
+UmScanNameToType(
+  PCHAR Name);
+
+BREAK_TYPE
+UmBreakNameToType(
+  PCHAR Name);
+
+MEMORY_TYPE
+UmMemoryNameToType(
+  PCHAR Name);
+
+MEMORY_OPERATION_TYPE
+UmMemoryOperationNameToType(
+  PCHAR Name);
+
+INT32
+UmShutdownRequest(
+  PASOCKET Socket,
+  LPSTR* Tokens);
+
+INT32
+UmScanRequest(
+  PASOCKET Socket,
+  LPSTR* Tokens);
+
+INT32
+UmBreakRequest(
+  PASOCKET Socket,
+  LPSTR* Tokens);
+
+INT32
+UmMemoryRequest(
+  PASOCKET Socket,
+  LPSTR* Tokens);
+
+INT32
+main(
+  INT32 Argc,
+  PCHAR Argv[]);
+
+///////////////////////////////////////////////////////////////
+// Implementation
+///////////////////////////////////////////////////////////////
+
+REQUEST_TYPE
+UmRequestNameToType(
+  PCHAR Name)
+{
+  if (strcmp("shutdown", Name) == 0) return REQUEST_TYPE_SHUTDOWN;
+  if (strcmp("scan", Name) == 0) return REQUEST_TYPE_SCAN;
+  if (strcmp("break", Name) == 0) return REQUEST_TYPE_BREAK;
+
+  return REQUEST_TYPE_NONE;
+}
+
+SCAN_TYPE
+UmScanNameToType(
+  PCHAR Name)
+{
+  if (strcmp("reset", Name) == 0) return SCAN_TYPE_RESET;
+  if (strcmp("aob", Name) == 0) return SCAN_TYPE_FIRST_ARRAY_OF_BYTES;
+  if (strcmp("changed", Name) == 0) return SCAN_TYPE_NEXT_CHANGED;
+  if (strcmp("unchanged", Name) == 0) return SCAN_TYPE_NEXT_UNCHANGED;
+  if (strcmp("undo", Name) == 0) return SCAN_TYPE_UNDO;
+
+  return SCAN_TYPE_NONE;
+}
+
+BREAK_TYPE
+UmBreakNameToType(
+  PCHAR Name)
+{
+  if (strcmp("set", Name) == 0) return BREAK_TYPE_SET;
+  if (strcmp("clear", Name) == 0) return BREAK_TYPE_CLEAR;
+
+  return BREAK_TYPE_NONE;
+}
+
+MEMORY_TYPE
+UmMemoryNameToType(
+  PCHAR Name)
+{
+  if (strcmp("kernel", Name) == 0) return MEMORY_TYPE_PROCESS;
+  if (strcmp("process", Name) == 0) return MEMORY_TYPE_KERNEL;
+
+  return MEMORY_TYPE_NONE;
+}
+
+MEMORY_OPERATION_TYPE
+UmMemoryOperationNameToType(
+  PCHAR Name)
+{
+  if (strcmp("read", Name) == 0) return MEMORY_OPERATION_TYPE_READ;
+  if (strcmp("write", Name) == 0) return MEMORY_OPERATION_TYPE_WRITE;
+
+  return MEMORY_OPERATION_TYPE_NONE;
+}
+
+INT32
+UmShutdownRequest(
+  PASOCKET Socket,
+  LPSTR* Tokens)
+{
+  INT32 status = 0;
+
+  return status;
+}
+
+INT32
+UmScanRequest(
+  PASOCKET Socket,
+  LPSTR* Tokens)
+{
+  INT32 status = 0;
+
+  // Send scan type
+  SCAN_TYPE scanType = UmScanNameToType(Tokens[1]);
+  status = UmSendSafe(Socket, &scanType, sizeof(SCAN_TYPE), 0);
+  if (status == 0)
+  {
+    switch (scanType)
+    {
+      case SCAN_TYPE_RESET:
+      {
+        break;
+      }
+      case SCAN_TYPE_FIRST_ARRAY_OF_BYTES:
+      {
+        // Send process id
+        UINT32 processId = strtoul(Tokens[2], NULL, 10);
+        status = UmSendSafe(Socket, &processId, sizeof(UINT32), 0);
+        if (status == 0)
+        {
+          // Send number of bytes
+          UINT32 numberOfBytes = (UINT32)strlen(Tokens[3]) / 2;
+          status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
+          if (status == 0)
+          {
+            // Allocate buffer to hold bytes
+            PBYTE bytes = calloc(numberOfBytes, sizeof(BYTE));
+            if (bytes)
+            {
+              // Copy bytes into buffer
+              UmHexToBytes(bytes, Tokens[3]);
+
+              // Send buffer
+              status = UmSendSafe(Socket, bytes, numberOfBytes, 0);
+
+              // Free bytes
+              free(bytes);
+            }
+          }
+        }
+
+        break;
+      }
+      case SCAN_TYPE_NEXT_CHANGED:
+      {
+        break;
+      }
+      case SCAN_TYPE_NEXT_UNCHANGED:
+      {
+        break;
+      }
+      case SCAN_TYPE_UNDO:
+      {
+        break;
+      }
+    }
+  }
+
+  return status;
+}
+
+INT32
+UmBreakRequest(
+  PASOCKET Socket,
+  LPSTR* Tokens)
+{
+  INT32 status = 0;
+
+  // Send break type
+  BREAK_TYPE breakType = UmBreakNameToType(Tokens[1]);
+  status = UmSendSafe(Socket, &breakType, sizeof(BREAK_TYPE), 0);
+  if (status == 0)
+  {
+    switch (breakType)
+    {
+      case BREAK_TYPE_SET:
+      {
+        break;
+      }
+      case BREAK_TYPE_CLEAR:
+      {
+        break;
+      }
+    }
+  }
+
+  return status;
+}
+
+INT32
+UmMemoryRequest(
+  PASOCKET Socket,
+  LPSTR* Tokens)
+{
+  INT32 status = 0;
+
+  // Send memory type
+  MEMORY_TYPE memoryType = UmMemoryNameToType(Tokens[1]);
+  status = UmSendSafe(Socket, &memoryType, sizeof(MEMORY_TYPE), 0);
+  if (status == 0)
+  {
+    switch (memoryType)
+    {
+      case MEMORY_TYPE_KERNEL:
+      {
+        // Send memory operation
+        MEMORY_OPERATION_TYPE memoryOperationType = UmMemoryOperationNameToType(Tokens[2]);
+        status = UmSendSafe(Socket, &memoryOperationType, sizeof(MEMORY_OPERATION_TYPE), 0);
+        if (status == 0)
+        {
+          switch (memoryOperationType)
+          {
+            case MEMORY_OPERATION_TYPE_READ:
+            {
+              // Send base address
+              UINT64 baseAddress = strtoull(Tokens[3], NULL, 16);
+              status = UmSendSafe(Socket, &baseAddress, sizeof(UINT64), 0);
+              if (status == 0)
+              {
+                // Send number of bytes
+                UINT32 numberOfBytes = strtoul(Tokens[4], NULL, 10);
+                status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
+              }
+
+              break;
+            }
+            case MEMORY_OPERATION_TYPE_WRITE:
+            {
+              // Send base address
+              UINT64 baseAddress = strtoull(Tokens[3], NULL, 16);
+              status = UmSendSafe(Socket, &baseAddress, sizeof(UINT64), 0);
+              if (status == 0)
+              {
+                // Send number of bytes
+                UINT32 numberOfBytes = (UINT32)strlen(Tokens[4]) / 2;
+                status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
+                if (status == 0)
+                {
+                  // Allocate buffer to hold bytes
+                  PBYTE bytes = calloc(numberOfBytes, sizeof(BYTE));
+                  if (bytes)
+                  {
+                    // Copy bytes into buffer
+                    UmHexToBytes(bytes, Tokens[4]);
+
+                    // Send buffer
+                    status = UmSendSafe(Socket, bytes, numberOfBytes, 0);
+
+                    // Free bytes
+                    free(bytes);
+                  }
+                }
+              }
+
+              break;
+            }
+          }
+        }
+
+        break;
+      }
+      case MEMORY_TYPE_PROCESS:
+      {
+        // Send process id
+        UINT32 processId = strtoul(Tokens[2], NULL, 10);
+        status = UmSendSafe(Socket, &processId, sizeof(UINT32), 0);
+        if (status == 0)
+        {
+          // Send memory operation
+          MEMORY_OPERATION_TYPE memoryOperationType = UmMemoryOperationNameToType(Tokens[3]);
+          status = UmSendSafe(Socket, &memoryOperationType, sizeof(MEMORY_OPERATION_TYPE), 0);
+          if (status == 0)
+          {
+            switch (memoryOperationType)
+            {
+              case MEMORY_OPERATION_TYPE_READ:
+              {
+                // Send base address
+                UINT64 baseAddress = strtoull(Tokens[4], NULL, 16);
+                status = UmSendSafe(Socket, &baseAddress, sizeof(UINT64), 0);
+                if (status == 0)
+                {
+                  // Send number of bytes
+                  UINT32 numberOfBytes = strtoul(Tokens[5], NULL, 10);
+                  status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
+                }
+
+                break;
+              }
+              case MEMORY_OPERATION_TYPE_WRITE:
+              {
+                // Send base address
+                UINT64 baseAddress = strtoull(Tokens[4], NULL, 16);
+                status = UmSendSafe(Socket, &baseAddress, sizeof(UINT64), 0);
+                if (status == 0)
+                {
+                  // Send number of bytes
+                  UINT32 numberOfBytes = (UINT32)strlen(Tokens[5]) / 2;
+                  status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
+                  if (status == 0)
+                  {
+                    // Allocate buffer to hold bytes
+                    PBYTE bytes = calloc(numberOfBytes, sizeof(BYTE));
+                    if (bytes)
+                    {
+                      // Copy bytes into buffer
+                      UmHexToBytes(bytes, Tokens[5]);
+
+                      // Send buffer
+                      status = UmSendSafe(Socket, bytes, numberOfBytes, 0);
+
+                      // Free bytes
+                      free(bytes);
+                    }
+                  }
+                }
+
+                break;
+              }
+            }
+          }
+        }
+
+        break;
+      }
+    }
+  }
+
+  return status;
+}
 
 ///////////////////////////////////////////////////////////////
 // Program Entry
 ///////////////////////////////////////////////////////////////
 
-INT32 main(INT32 Argc, PCHAR Argv[])
+INT32
+main(
+  INT32 Argc,
+  PCHAR Argv[])
 {
   INT32 status = 0;
 
@@ -30,50 +387,68 @@ INT32 main(INT32 Argc, PCHAR Argv[])
         {
           CHAR charBuffer[32] = { 0 };
           UINT32 charsRead = 0;
-          if (ReadConsole(stdIn, charBuffer, sizeof(charBuffer), &charsRead, NULL) != 0)
+          if (ReadConsole(stdIn, charBuffer, 32, &charsRead, NULL) != 0)
           {
             UINT32 tokenCount = 0;
-            LPSTR* tokens = UmTokenizeString(charBuffer, &tokenCount);;
-
-            // Create socket
-            status = UmCreateSocket(&remoteSocket, remoteAddress);
-            if (status == 0)
+            LPSTR* tokens = UmTokenizeString(charBuffer, &tokenCount);
+            if (tokens && tokenCount > 0)
             {
-              // Connect remote socket
-              status = UmConnect(remoteSocket);
+              // Create socket
+              status = UmCreateSocket(&remoteSocket, remoteAddress);
               if (status == 0)
               {
-                REQUEST_TYPE requestType = atoi(tokens[0]);
-                UINT32 requestTypeSize = sizeof(requestType);
-                status = UmSend(remoteSocket, &requestType, &requestTypeSize, 0);
+                // Connect remote socket
+                status = UmConnect(remoteSocket);
+                if (status == 0)
+                {
+                  REQUEST_TYPE requestType = UmRequestNameToType(tokens[0]);
+                  status = UmSendSafe(remoteSocket, &requestType, sizeof(REQUEST_TYPE), 0);
+                  if (status == 0)
+                  {
+                    switch (requestType)
+                    {
+                      case REQUEST_TYPE_SHUTDOWN:
+                      {
+                        // Shutdown TCP server
+                        UmShutdownRequest(remoteSocket, tokens);
+
+                        break;
+                      }
+                      case REQUEST_TYPE_SCAN:
+                      {
+                        // Scan process memory
+                        UmScanRequest(remoteSocket, tokens);
+
+                        break;
+                      }
+                      case REQUEST_TYPE_BREAK:
+                      {
+                        // Manage breakpoints
+                        status = UmBreakRequest(remoteSocket, tokens);
+
+                        break;
+                      }
+                      case REQUEST_TYPE_MEMORY:
+                      {
+                        // Read/Write kernel/process memory
+                        status = UmMemoryRequest(remoteSocket, tokens);
+
+                        break;
+                      }
+                    }
+                  }
             
-                REQUEST_SCAN requestScan = { 0 };
-                requestScan.Pid = atoi(tokens[1]);
-                requestScan.NumberOfBytes = atoi(tokens[2]);
-                UINT32 requestScanSize = sizeof(requestScan);
-                status = UmSend(remoteSocket, &requestScan, &requestScanSize, 0);
-
-                INT32 requestValue = atoi(tokens[3]);
-                UINT32 requestValueSize = sizeof(requestValue);
-                status = UmSend(remoteSocket, &requestValue, &requestValueSize, 0);
-
-                SCAN_TYPE scanType = atoi(tokens[4]);
-                UINT32 scanTypeSize = sizeof(scanType);
-                status = UmSend(remoteSocket, &scanType, &scanTypeSize, 0);
-
-                //UINT32 recvBufferSize = sizeof(recvBuffer) - 1;
-                //status = WsaRecv(Socket, recvBuffer, &recvBufferSize, 0);
+                  // Shutdown remote socket
+                  UmShutdownSocket(remoteSocket);
+                }
             
-                // Shutdown remote socket
-                UmShutdownSocket(remoteSocket);
+                // Close remote socket
+                UmCloseSocket(remoteSocket);
               }
-            
-              // Close remote socket
-              UmCloseSocket(remoteSocket);
-            }
 
-            // Close socket
-            UmFreeTokens(tokens, tokenCount);
+              // Close socket
+              UmFreeTokens(tokens, tokenCount);
+            }
           }
         }
 

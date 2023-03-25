@@ -534,3 +534,23 @@ KmRecv(
 {
   return KmSendRecv(Socket, Buffer, Length, Flags, FALSE);
 }
+
+NTSTATUS
+KmSendSafe(
+  PKSOCKET Socket,
+  PVOID Buffer,
+  UINT32 Length,
+  UINT32 Flags)
+{
+  return KmSendRecv(Socket, Buffer, &Length, Flags, TRUE);
+}
+
+NTSTATUS
+KmRecvSafe(
+  PKSOCKET Socket,
+  PVOID Buffer,
+  UINT32 Length,
+  UINT32 Flags)
+{
+  return KmSendRecv(Socket, Buffer, &Length, Flags, FALSE);
+}

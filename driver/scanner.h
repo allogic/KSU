@@ -15,7 +15,7 @@ KmResetScanner();
 
 VOID
 KmFirstScanArrayOfBytes(
-  PVOID DirectoryTableBase,
+  PVOID PageTableBase,
   UINT32 NumberOfBytes,
   PBYTE Bytes);
 

@@ -108,4 +108,18 @@ KmRecv(
   PUINT32 Length,
   UINT32 Flags);
 
+NTSTATUS
+KmSendSafe(
+  PKSOCKET Socket,
+  PVOID Buffer,
+  UINT32 Length,
+  UINT32 Flags);
+
+NTSTATUS
+KmRecvSafe(
+  PKSOCKET Socket,
+  PVOID Buffer,
+  UINT32 Length,
+  UINT32 Flags);
+
 #endif

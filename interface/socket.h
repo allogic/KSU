@@ -63,4 +63,18 @@ UmRecv(
   PUINT32 Length,
   UINT32 Flags);
 
+INT32
+UmSendSafe(
+  PASOCKET Socket,
+  PVOID Buffer,
+  UINT32 Length,
+  UINT32 Flags);
+
+INT32
+UmRecvSafe(
+  PASOCKET Socket,
+  PVOID Buffer,
+  UINT32 Length,
+  UINT32 Flags);
+
 #endif
