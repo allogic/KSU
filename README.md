@@ -1,5 +1,7 @@
 # Kernel Script Utility
 
+An x64 Kernel-Mode rootkit written in C.
+
 # Compiling the Project
 
 Open the VisualStudio solution and build for `Debug` or `Release` bitness `x64`.
