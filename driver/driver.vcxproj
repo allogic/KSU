@@ -198,7 +198,7 @@
   <ItemGroup>
     <ClInclude Include="core.h" />
     <ClInclude Include="except.h" />
-    <ClInclude Include="findaddr.h" />
+    <ClInclude Include="baseaddr.h" />
     <ClInclude Include="intercom.h" />
     <ClInclude Include="memory.h" />
     <ClInclude Include="pagetbl.h" />
@@ -209,7 +209,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="except.c" />
-    <ClCompile Include="findaddr.c" />
+    <ClCompile Include="baseaddr.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="memory.c" />
     <ClCompile Include="pagetbl.c" />

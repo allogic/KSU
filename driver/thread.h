@@ -9,8 +9,7 @@
 ///////////////////////////////////////////////////////////////
 
 VOID
-KmInitializeThreading(
-  PDRIVER_OBJECT Driver);
+KmInitializeThreading();
 
 NTSTATUS
 KmSuspendThread(

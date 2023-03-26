@@ -147,14 +147,12 @@
     <ClInclude Include="except.h" />
     <ClInclude Include="intercom.h" />
     <ClInclude Include="socket.h" />
-    <ClInclude Include="tokenizer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="strconv.c" />
     <ClCompile Include="except.c" />
     <ClCompile Include="main.c" />
     <ClCompile Include="socket.c" />
-    <ClCompile Include="tokenizer.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

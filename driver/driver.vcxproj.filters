@@ -48,7 +48,7 @@
     <ClInclude Include="thread.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="findaddr.h">
+    <ClInclude Include="baseaddr.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="memory.h">
@@ -74,7 +74,7 @@
     <ClCompile Include="thread.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="findaddr.c">
+    <ClCompile Include="baseaddr.c">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="memory.c">

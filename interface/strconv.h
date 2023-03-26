@@ -19,7 +19,7 @@ UmUtf8ToUtf16(
 
 VOID
 UmHexToBytes(
-  PBYTE Bytes,
-  PCHAR String);
+  PBYTE Hex,
+  PBYTE Bytes);
 
 #endif

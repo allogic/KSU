@@ -5,10 +5,11 @@
 #include "except.h"
 #include "scanner.h"
 #include "thread.h"
+#include "baseaddr.h"
 #include "memory.h"
 
 ///////////////////////////////////////////////////////////////
-// Private Variables
+// Local Variables
 ///////////////////////////////////////////////////////////////
 
 static BOOL sDriverIsShuttingDown = FALSE;
@@ -528,7 +529,7 @@ DriverUnload(
   // Wait till TCP server has beed stopped
   KeWaitForSingleObject(&sTcpServerStoppedEvent, Executive, KernelMode, FALSE, NULL);
 
-  // Reset scanner which will free all its memory
+  // Reset scanner which will free all memory
   KmResetScanner();
 
   LOG("Driver stopped\n");
@@ -546,8 +547,11 @@ DriverEntry(
   // Setup driver unload procedure
   Driver->DriverUnload = DriverUnload;
 
+  // Initialize base addresses
+  KmInitializeBaseAddresses(Driver);
+
   // Initialize thread API
-  KmInitializeThreading(Driver);
+  KmInitializeThreading();
 
   // Initialize events
   KeInitializeEvent(&sTcpServerStoppedEvent, SynchronizationEvent, FALSE);

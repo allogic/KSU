@@ -22,13 +22,13 @@ UmUtf8ToUtf16(
 
 VOID
 UmHexToBytes(
-  PBYTE Bytes,
-  PCHAR String)
+  PBYTE Hex,
+  PBYTE Bytes)
 {
   CHAR byte[2] = { 0 };
-  for (UINT32 i = 0, j = 0; i < strlen(String) - 1; i += 2, j++)
+  for (UINT32 i = 0, j = 0; i < (strlen(Hex) - 1); i += 2, j++)
   {
-    strncpy(byte, String + i, 2);
+    strncpy(byte, Hex + i, 2);
     Bytes[j] = (BYTE)strtoul(byte, NULL, 16);
   }
 }

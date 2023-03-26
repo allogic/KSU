@@ -1,5 +1,4 @@
 #include "core.h"
-#include "tokenizer.h"
 #include "socket.h"
 #include "intercom.h"
 #include "except.h"
@@ -32,22 +31,22 @@ UmMemoryOperationNameToType(
 INT32
 UmShutdownRequest(
   PASOCKET Socket,
-  LPSTR* Tokens);
+  PCHAR Argv[]);
 
 INT32
 UmScanRequest(
   PASOCKET Socket,
-  LPSTR* Tokens);
+  PCHAR Argv[]);
 
 INT32
 UmBreakRequest(
   PASOCKET Socket,
-  LPSTR* Tokens);
+  PCHAR Argv[]);
 
 INT32
 UmMemoryRequest(
   PASOCKET Socket,
-  LPSTR* Tokens);
+  PCHAR Argv[]);
 
 INT32
 main(
@@ -65,6 +64,7 @@ UmRequestNameToType(
   if (strcmp("shutdown", Name) == 0) return REQUEST_TYPE_SHUTDOWN;
   if (strcmp("scan", Name) == 0) return REQUEST_TYPE_SCAN;
   if (strcmp("break", Name) == 0) return REQUEST_TYPE_BREAK;
+  if (strcmp("memory", Name) == 0) return REQUEST_TYPE_MEMORY;
 
   return REQUEST_TYPE_NONE;
 }
@@ -96,8 +96,8 @@ MEMORY_TYPE
 UmMemoryNameToType(
   PCHAR Name)
 {
-  if (strcmp("kernel", Name) == 0) return MEMORY_TYPE_PROCESS;
-  if (strcmp("process", Name) == 0) return MEMORY_TYPE_KERNEL;
+  if (strcmp("kernel", Name) == 0) return MEMORY_TYPE_KERNEL;
+  if (strcmp("process", Name) == 0) return MEMORY_TYPE_PROCESS;
 
   return MEMORY_TYPE_NONE;
 }
@@ -115,7 +115,7 @@ UmMemoryOperationNameToType(
 INT32
 UmShutdownRequest(
   PASOCKET Socket,
-  LPSTR* Tokens)
+  PCHAR Argv[])
 {
   INT32 status = 0;
 
@@ -125,12 +125,12 @@ UmShutdownRequest(
 INT32
 UmScanRequest(
   PASOCKET Socket,
-  LPSTR* Tokens)
+  PCHAR Argv[])
 {
   INT32 status = 0;
 
   // Send scan type
-  SCAN_TYPE scanType = UmScanNameToType(Tokens[1]);
+  SCAN_TYPE scanType = UmScanNameToType(Argv[4]);
   status = UmSendSafe(Socket, &scanType, sizeof(SCAN_TYPE), 0);
   if (status == 0)
   {
@@ -143,12 +143,12 @@ UmScanRequest(
       case SCAN_TYPE_FIRST_ARRAY_OF_BYTES:
       {
         // Send process id
-        UINT32 processId = strtoul(Tokens[2], NULL, 10);
+        UINT32 processId = strtoul(Argv[5], NULL, 10);
         status = UmSendSafe(Socket, &processId, sizeof(UINT32), 0);
         if (status == 0)
         {
           // Send number of bytes
-          UINT32 numberOfBytes = (UINT32)strlen(Tokens[3]) / 2;
+          UINT32 numberOfBytes = (UINT32)strlen(Argv[6]) / 2;
           status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
           if (status == 0)
           {
@@ -157,7 +157,7 @@ UmScanRequest(
             if (bytes)
             {
               // Copy bytes into buffer
-              UmHexToBytes(bytes, Tokens[3]);
+              UmHexToBytes(Argv[6], bytes);
 
               // Send buffer
               status = UmSendSafe(Socket, bytes, numberOfBytes, 0);
@@ -191,12 +191,12 @@ UmScanRequest(
 INT32
 UmBreakRequest(
   PASOCKET Socket,
-  LPSTR* Tokens)
+  PCHAR Argv[])
 {
   INT32 status = 0;
 
   // Send break type
-  BREAK_TYPE breakType = UmBreakNameToType(Tokens[1]);
+  BREAK_TYPE breakType = UmBreakNameToType(Argv[4]);
   status = UmSendSafe(Socket, &breakType, sizeof(BREAK_TYPE), 0);
   if (status == 0)
   {
@@ -219,12 +219,12 @@ UmBreakRequest(
 INT32
 UmMemoryRequest(
   PASOCKET Socket,
-  LPSTR* Tokens)
+  PCHAR Argv[])
 {
   INT32 status = 0;
 
   // Send memory type
-  MEMORY_TYPE memoryType = UmMemoryNameToType(Tokens[1]);
+  MEMORY_TYPE memoryType = UmMemoryNameToType(Argv[4]);
   status = UmSendSafe(Socket, &memoryType, sizeof(MEMORY_TYPE), 0);
   if (status == 0)
   {
@@ -233,7 +233,7 @@ UmMemoryRequest(
       case MEMORY_TYPE_KERNEL:
       {
         // Send memory operation
-        MEMORY_OPERATION_TYPE memoryOperationType = UmMemoryOperationNameToType(Tokens[2]);
+        MEMORY_OPERATION_TYPE memoryOperationType = UmMemoryOperationNameToType(Argv[5]);
         status = UmSendSafe(Socket, &memoryOperationType, sizeof(MEMORY_OPERATION_TYPE), 0);
         if (status == 0)
         {
@@ -242,12 +242,12 @@ UmMemoryRequest(
             case MEMORY_OPERATION_TYPE_READ:
             {
               // Send base address
-              UINT64 baseAddress = strtoull(Tokens[3], NULL, 16);
+              UINT64 baseAddress = strtoull(Argv[6], NULL, 16);
               status = UmSendSafe(Socket, &baseAddress, sizeof(UINT64), 0);
               if (status == 0)
               {
                 // Send number of bytes
-                UINT32 numberOfBytes = strtoul(Tokens[4], NULL, 10);
+                UINT32 numberOfBytes = strtoul(Argv[7], NULL, 10);
                 status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
               }
 
@@ -256,12 +256,12 @@ UmMemoryRequest(
             case MEMORY_OPERATION_TYPE_WRITE:
             {
               // Send base address
-              UINT64 baseAddress = strtoull(Tokens[3], NULL, 16);
+              UINT64 baseAddress = strtoull(Argv[6], NULL, 16);
               status = UmSendSafe(Socket, &baseAddress, sizeof(UINT64), 0);
               if (status == 0)
               {
                 // Send number of bytes
-                UINT32 numberOfBytes = (UINT32)strlen(Tokens[4]) / 2;
+                UINT32 numberOfBytes = (UINT32)strlen(Argv[7]) / 2;
                 status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
                 if (status == 0)
                 {
@@ -270,7 +270,7 @@ UmMemoryRequest(
                   if (bytes)
                   {
                     // Copy bytes into buffer
-                    UmHexToBytes(bytes, Tokens[4]);
+                    UmHexToBytes(bytes, Argv[7]);
 
                     // Send buffer
                     status = UmSendSafe(Socket, bytes, numberOfBytes, 0);
@@ -291,12 +291,12 @@ UmMemoryRequest(
       case MEMORY_TYPE_PROCESS:
       {
         // Send process id
-        UINT32 processId = strtoul(Tokens[2], NULL, 10);
+        UINT32 processId = strtoul(Argv[5], NULL, 10);
         status = UmSendSafe(Socket, &processId, sizeof(UINT32), 0);
         if (status == 0)
         {
           // Send memory operation
-          MEMORY_OPERATION_TYPE memoryOperationType = UmMemoryOperationNameToType(Tokens[3]);
+          MEMORY_OPERATION_TYPE memoryOperationType = UmMemoryOperationNameToType(Argv[6]);
           status = UmSendSafe(Socket, &memoryOperationType, sizeof(MEMORY_OPERATION_TYPE), 0);
           if (status == 0)
           {
@@ -305,12 +305,12 @@ UmMemoryRequest(
               case MEMORY_OPERATION_TYPE_READ:
               {
                 // Send base address
-                UINT64 baseAddress = strtoull(Tokens[4], NULL, 16);
+                UINT64 baseAddress = strtoull(Argv[7], NULL, 16);
                 status = UmSendSafe(Socket, &baseAddress, sizeof(UINT64), 0);
                 if (status == 0)
                 {
                   // Send number of bytes
-                  UINT32 numberOfBytes = strtoul(Tokens[5], NULL, 10);
+                  UINT32 numberOfBytes = strtoul(Argv[8], NULL, 10);
                   status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
                 }
 
@@ -319,12 +319,12 @@ UmMemoryRequest(
               case MEMORY_OPERATION_TYPE_WRITE:
               {
                 // Send base address
-                UINT64 baseAddress = strtoull(Tokens[4], NULL, 16);
+                UINT64 baseAddress = strtoull(Argv[7], NULL, 16);
                 status = UmSendSafe(Socket, &baseAddress, sizeof(UINT64), 0);
                 if (status == 0)
                 {
                   // Send number of bytes
-                  UINT32 numberOfBytes = (UINT32)strlen(Tokens[5]) / 2;
+                  UINT32 numberOfBytes = (UINT32)strlen(Argv[7]) / 2;
                   status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
                   if (status == 0)
                   {
@@ -333,7 +333,7 @@ UmMemoryRequest(
                     if (bytes)
                     {
                       // Copy bytes into buffer
-                      UmHexToBytes(bytes, Tokens[5]);
+                      UmHexToBytes(bytes, Argv[7]);
 
                       // Send buffer
                       status = UmSendSafe(Socket, bytes, numberOfBytes, 0);
@@ -381,75 +381,57 @@ main(
       status = UmGetAddrInfo(Argv[1], Argv[2], (ADDRESS_FAMILY)AF_INET, (UINT16)SOCK_STREAM, IPPROTO_TCP, &remoteAddress);
       if (status == 0)
       {
-        // Read evaluate print line
-        HANDLE stdIn = GetStdHandle(STD_INPUT_HANDLE);
-        while (TRUE)
+        // Create socket
+        status = UmCreateSocket(&remoteSocket, remoteAddress);
+        if (status == 0)
         {
-          CHAR charBuffer[32] = { 0 };
-          UINT32 charsRead = 0;
-          if (ReadConsole(stdIn, charBuffer, 32, &charsRead, NULL) != 0)
+          // Connect remote socket
+          status = UmConnect(remoteSocket);
+          if (status == 0)
           {
-            UINT32 tokenCount = 0;
-            LPSTR* tokens = UmTokenizeString(charBuffer, &tokenCount);
-            if (tokens && tokenCount > 0)
+            REQUEST_TYPE requestType = UmRequestNameToType(Argv[3]);
+            status = UmSendSafe(remoteSocket, &requestType, sizeof(REQUEST_TYPE), 0);
+            if (status == 0)
             {
-              // Create socket
-              status = UmCreateSocket(&remoteSocket, remoteAddress);
-              if (status == 0)
+              switch (requestType)
               {
-                // Connect remote socket
-                status = UmConnect(remoteSocket);
-                if (status == 0)
+                case REQUEST_TYPE_SHUTDOWN:
                 {
-                  REQUEST_TYPE requestType = UmRequestNameToType(tokens[0]);
-                  status = UmSendSafe(remoteSocket, &requestType, sizeof(REQUEST_TYPE), 0);
-                  if (status == 0)
-                  {
-                    switch (requestType)
-                    {
-                      case REQUEST_TYPE_SHUTDOWN:
-                      {
-                        // Shutdown TCP server
-                        UmShutdownRequest(remoteSocket, tokens);
+                  // Shutdown TCP server
+                  UmShutdownRequest(remoteSocket, Argv);
 
-                        break;
-                      }
-                      case REQUEST_TYPE_SCAN:
-                      {
-                        // Scan process memory
-                        UmScanRequest(remoteSocket, tokens);
-
-                        break;
-                      }
-                      case REQUEST_TYPE_BREAK:
-                      {
-                        // Manage breakpoints
-                        status = UmBreakRequest(remoteSocket, tokens);
-
-                        break;
-                      }
-                      case REQUEST_TYPE_MEMORY:
-                      {
-                        // Read/Write kernel/process memory
-                        status = UmMemoryRequest(remoteSocket, tokens);
-
-                        break;
-                      }
-                    }
-                  }
-            
-                  // Shutdown remote socket
-                  UmShutdownSocket(remoteSocket);
+                  break;
                 }
-            
-                // Close remote socket
-                UmCloseSocket(remoteSocket);
-              }
+                case REQUEST_TYPE_SCAN:
+                {
+                  // Scan process memory
+                  UmScanRequest(remoteSocket, Argv);
 
-              // Close socket
-              UmFreeTokens(tokens, tokenCount);
+                  break;
+                }
+                case REQUEST_TYPE_BREAK:
+                {
+                  // Manage breakpoints
+                  status = UmBreakRequest(remoteSocket, Argv);
+
+                  break;
+                }
+                case REQUEST_TYPE_MEMORY:
+                {
+                  // Read/Write kernel/process memory
+                  status = UmMemoryRequest(remoteSocket, Argv);
+
+                  break;
+                }
+              }
             }
+      
+            // Shutdown remote socket
+            UmShutdownSocket(remoteSocket);
           }
+      
+          // Close remote socket
+          UmCloseSocket(remoteSocket);
         }
 
         // Free remote address
