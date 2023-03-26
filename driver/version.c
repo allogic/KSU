@@ -80,6 +80,6 @@ KmDumpSystemVersion()
   NTSTATUS status = RtlGetVersion((PRTL_OSVERSIONINFOW)&osVersionInfo);
   if (NT_SUCCESS(status))
   {
-    LOG("OS Version:  %u.%u.%u\n", osVersionInfo.dwMajorVersion, osVersionInfo.dwMinorVersion, osVersionInfo.dwBuildNumber);
+    LOG("OS Version: %u.%u.%u\n", osVersionInfo.dwMajorVersion, osVersionInfo.dwMinorVersion, osVersionInfo.dwBuildNumber);
   }
 }

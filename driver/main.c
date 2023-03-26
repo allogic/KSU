@@ -34,6 +34,10 @@ KmShutdownRequest(
   PKSOCKET Socket);
 
 NTSTATUS
+KmInfoRequest(
+  PKSOCKET Socket);
+
+NTSTATUS
 KmScanRequest(
   PKSOCKET Socket);
 
@@ -75,6 +79,64 @@ KmShutdownRequest(
   NTSTATUS status = STATUS_UNSUCCESSFUL;
 
   sDriverIsShuttingDown = TRUE;
+
+  return status;
+}
+
+NTSTATUS
+KmInfoRequest(
+  PKSOCKET Socket)
+{
+  NTSTATUS status = STATUS_UNSUCCESSFUL;
+
+  // Raise IRQ to dispatch level
+  KIRQL prevInterruptRequestLevel = PASSIVE_LEVEL;
+  KeRaiseIrql(DISPATCH_LEVEL, &prevInterruptRequestLevel);
+
+  __try
+  {
+    // Receive info type
+    INFO_TYPE infoType = INFO_TYPE_NONE;
+    status = KmRecvSafe(Socket, &infoType, sizeof(INFO_TYPE), 0);
+    if (NT_SUCCESS(status))
+    {
+      switch (infoType)
+      {
+        case INFO_TYPE_PROCESS:
+        {
+          // Receive process id
+          UINT32 processId = 0;
+          status = KmRecvSafe(Socket, &processId, sizeof(UINT32), 0);
+          if (NT_SUCCESS(status))
+          {
+            // Open process
+            PEPROCESS process = NULL;
+            status = PsLookupProcessByProcessId((HANDLE)processId, &process);
+            if (NT_SUCCESS(status))
+            {
+              // Get base address
+              UINT64 base = (UINT64)PsGetProcessSectionBaseAddress(process);
+
+              // Send base address
+              status = KmSendSafe(Socket, &base, sizeof(UINT64), 0);
+
+              // Close process
+              ObDereferenceObject(process);
+            }
+          }
+
+          break;
+        }
+      }
+    }
+  }
+  __except (DEFAULT_EXCEPTION_HANDLER)
+  {
+    status = STATUS_UNHANDLED_EXCEPTION;
+  }
+
+  // Lower IRQ to previous level
+  KeLowerIrql(prevInterruptRequestLevel);
 
   return status;
 }
@@ -280,10 +342,10 @@ KmMemoryRequest(
                     {
                       // Read kernel memory
                       status = KmReadKernelMemory(bytes, (PVOID)baseAddress, numberOfBytes);
-
-                      for (UINT32 i = 0; i < numberOfBytes; i++)
+                      if (NT_SUCCESS(status))
                       {
-                        LOG("%02X\n", bytes[i]);
+                        // Send bytes
+                        status = KmSendSafe(Socket, bytes, numberOfBytes, 0);
                       }
 
                       // Free bytes
@@ -368,10 +430,10 @@ KmMemoryRequest(
                         {
                           // Read process memory
                           status = KmReadProcessMemory(process, bytes, (PVOID)baseAddress, numberOfBytes);
-
-                          for (UINT32 i = 0; i < numberOfBytes; i++)
+                          if (NT_SUCCESS(status))
                           {
-                            LOG("%02X\n", bytes[i]);
+                            // Send bytes
+                            status = KmSendSafe(Socket, bytes, numberOfBytes, 0);
                           }
 
                           // Close process
@@ -492,34 +554,11 @@ KmTcpServerThread(
               {
                 switch (requestType)
                 {
-                  case REQUEST_TYPE_SHUTDOWN:
-                  {
-                    // Shutdown TCP server
-                    status = KmShutdownRequest(clientSocket);
-
-                    break;
-                  }
-                  case REQUEST_TYPE_SCAN:
-                  {
-                    // Scan process memory
-                    status = KmScanRequest(clientSocket);
-
-                    break;
-                  }
-                  case REQUEST_TYPE_BREAK:
-                  {
-                    // Manage breakpoints
-                    status = KmBreakRequest(clientSocket);
-
-                    break;
-                  }
-                  case REQUEST_TYPE_MEMORY:
-                  {
-                    // Read/Write kernel/process memory
-                    status = KmMemoryRequest(clientSocket);
-
-                    break;
-                  }
+                  case REQUEST_TYPE_SHUTDOWN: status = KmShutdownRequest(clientSocket); break;
+                  case REQUEST_TYPE_INFO:     status = KmInfoRequest(clientSocket); break;
+                  case REQUEST_TYPE_SCAN:     status = KmScanRequest(clientSocket); break;
+                  case REQUEST_TYPE_BREAK:    status = KmBreakRequest(clientSocket); break;
+                  case REQUEST_TYPE_MEMORY:   status = KmMemoryRequest(clientSocket); break;
                 }
               }
 

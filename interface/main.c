@@ -34,6 +34,11 @@ UmShutdownRequest(
   PCHAR Argv[]);
 
 INT32
+UmInfoRequest(
+  PASOCKET Socket,
+  PCHAR Argv[]);
+
+INT32
 UmScanRequest(
   PASOCKET Socket,
   PCHAR Argv[]);
@@ -62,11 +67,21 @@ UmRequestNameToType(
   PCHAR Name)
 {
   if (strcmp("shutdown", Name) == 0) return REQUEST_TYPE_SHUTDOWN;
+  if (strcmp("info", Name) == 0) return REQUEST_TYPE_INFO;
   if (strcmp("scan", Name) == 0) return REQUEST_TYPE_SCAN;
   if (strcmp("break", Name) == 0) return REQUEST_TYPE_BREAK;
   if (strcmp("memory", Name) == 0) return REQUEST_TYPE_MEMORY;
 
   return REQUEST_TYPE_NONE;
+}
+
+INFO_TYPE
+UmInfoNameToType(
+  PCHAR Name)
+{
+  if (strcmp("process", Name) == 0) return INFO_TYPE_PROCESS;
+
+  return INFO_TYPE_NONE;
 }
 
 SCAN_TYPE
@@ -118,6 +133,44 @@ UmShutdownRequest(
   PCHAR Argv[])
 {
   INT32 status = 0;
+
+  return status;
+}
+
+INT32
+UmInfoRequest(
+  PASOCKET Socket,
+  PCHAR Argv[])
+{
+  INT32 status = 0;
+
+  // Send info type
+  INFO_TYPE infoType = UmInfoNameToType(Argv[4]);
+  status = UmSendSafe(Socket, &infoType, sizeof(INFO_TYPE), 0);
+  if (status == 0)
+  {
+    switch (infoType)
+    {
+      case INFO_TYPE_PROCESS:
+      {
+        // Send process id
+        UINT32 processId = strtoul(Argv[5], NULL, 10);
+        status = UmSendSafe(Socket, &processId, sizeof(UINT32), 0);
+        if (status == 0)
+        {
+          // Receive process base
+          UINT64 base = 0;
+          status = UmRecvSafe(Socket, &base, sizeof(UINT64), 0);
+          if (status == 0)
+          {
+            LOG("%p\n", (PVOID)base);
+          }
+        }
+
+        break;
+      }
+    }
+  }
 
   return status;
 }
@@ -249,6 +302,26 @@ UmMemoryRequest(
                 // Send number of bytes
                 UINT32 numberOfBytes = strtoul(Argv[7], NULL, 10);
                 status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
+                if (status == 0)
+                {
+                  // Allocate buffer to hold bytes
+                  PBYTE bytes = calloc(numberOfBytes, sizeof(BYTE));
+                  if (bytes)
+                  {
+                    // Receive bytes
+                    status = UmRecvSafe(Socket, bytes, numberOfBytes, 0);
+                    if (status == 0)
+                    {
+                      for (UINT32 i = 0; i < numberOfBytes; i++)
+                      {
+                        LOG("%02X ", bytes[i]);
+                      }
+                    }
+
+                    // Free bytes
+                    free(bytes);
+                  }
+                }
               }
 
               break;
@@ -312,6 +385,26 @@ UmMemoryRequest(
                   // Send number of bytes
                   UINT32 numberOfBytes = strtoul(Argv[8], NULL, 10);
                   status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
+                  if (status == 0)
+                  {
+                    // Allocate buffer to hold bytes
+                    PBYTE bytes = calloc(numberOfBytes, sizeof(BYTE));
+                    if (bytes)
+                    {
+                      // Receive bytes
+                      status = UmRecvSafe(Socket, bytes, numberOfBytes, 0);
+                      if (status == 0)
+                      {
+                        for (UINT32 i = 0; i < numberOfBytes; i++)
+                        {
+                          LOG("%02X ", bytes[i]);
+                        }
+                      }
+
+                      // Free bytes
+                      free(bytes);
+                    }
+                  }
                 }
 
                 break;
@@ -395,34 +488,11 @@ main(
             {
               switch (requestType)
               {
-                case REQUEST_TYPE_SHUTDOWN:
-                {
-                  // Shutdown TCP server
-                  UmShutdownRequest(remoteSocket, Argv);
-
-                  break;
-                }
-                case REQUEST_TYPE_SCAN:
-                {
-                  // Scan process memory
-                  UmScanRequest(remoteSocket, Argv);
-
-                  break;
-                }
-                case REQUEST_TYPE_BREAK:
-                {
-                  // Manage breakpoints
-                  status = UmBreakRequest(remoteSocket, Argv);
-
-                  break;
-                }
-                case REQUEST_TYPE_MEMORY:
-                {
-                  // Read/Write kernel/process memory
-                  status = UmMemoryRequest(remoteSocket, Argv);
-
-                  break;
-                }
+                case REQUEST_TYPE_SHUTDOWN: status = UmShutdownRequest(remoteSocket, Argv); break;
+                case REQUEST_TYPE_INFO:     status = UmInfoRequest(remoteSocket, Argv); break;
+                case REQUEST_TYPE_SCAN:     status = UmScanRequest(remoteSocket, Argv); break;
+                case REQUEST_TYPE_BREAK:    status = UmBreakRequest(remoteSocket, Argv); break;
+                case REQUEST_TYPE_MEMORY:   status = UmMemoryRequest(remoteSocket, Argv); break;
               }
             }
       

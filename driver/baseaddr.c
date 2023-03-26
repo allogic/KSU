@@ -90,9 +90,9 @@ KmInitializeBaseAddresses(
       "\x00\x00\xFF\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00");
   }
 
-  LOG("NtosKrnl at %p\n", gNtosKrnlBase);
-  LOG("KeSuspendThread at %p\n", (PVOID)gKeSuspendThreadOffset);
-  LOG("KeResumeThread at %p\n", (PVOID)gKeResumeThreadOffset);
+  LOG("NtosKrnl: %p\n", gNtosKrnlBase);
+  LOG("KeSuspendThread: %p\n", (PVOID)gKeSuspendThreadOffset);
+  LOG("KeResumeThread: %p\n", (PVOID)gKeResumeThreadOffset);
 }
 
 PVOID

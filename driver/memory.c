@@ -1,5 +1,4 @@
 #include "memory.h"
-#include "undoc.h"
 
 ///////////////////////////////////////////////////////////////
 // Private API
@@ -134,9 +133,6 @@ KmReadProcessMemory(
   KAPC_STATE apc = { 0 };
   KeStackAttachProcess(Process, &apc);
 
-  PVOID base = PsGetProcessSectionBaseAddress(Process);
-  LOG("process base at %p\n", base);
-
   // Read memory
   status = KmReadMemory(Destination, Source, Size);
 
@@ -158,9 +154,6 @@ KmWriteProcessMemory(
   // Attach to process
   KAPC_STATE apc;
   KeStackAttachProcess(Process, &apc);
-
-  PVOID base = PsGetProcessSectionBaseAddress(Process);
-  LOG("process base at %p\n", base);
 
   // Write memory
   status = KmWriteMemory(Destination, Source, Size);
