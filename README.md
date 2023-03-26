@@ -20,13 +20,39 @@ interface.exe 127.0.0.1 9095                          // issue a variety of comm
 
 An alternative way is to disable `Driver Signature Enforcement` by holding `Shift` and reboot. Once windows is booting up again click `Troubleshoot/Advanced Options/Startup Settings/Restart`. Almost every anti-cheat software doesn't start since `Driver Signature Enforcement` has been disabled permanently till the next reboot.
 
+# Usage with Python
+
+```python
+import subprocess
+
+ip = '127.0.0.1'
+port = 9095
+pid = 1234
+
+# Get base address of process
+cmd = 'interface {} {} info process {}'.format(ip, port, pid)
+base = subprocess.run(cmd, capture_output=True, text=True).stdout.strip('\n')
+print(base) # 00007FF6AE350000
+
+# Get bytes at that address
+cmd = 'interface {} {} memory process {} read {} 16'.format(ip, port, base)
+bytes = subprocess.run(cmd, capture_output=True, text=True).stdout.strip('\n')
+print(bytes) # 4D 5A 90 00 03 00 00 00 04 00 00 00 FF FF 00
+```
+
 # API
+
+## Information
+
+This API is still under construction.
+
+```
+interface [Ip(Str)] [Port(Dec)] info process [ProcessId(Dec)]
+```
 
 ## Memory Scanning
 
 This API is still under construction.
-
-A process page table iterator.
 
 ```
 interface [Ip(Str)] [Port(Dec)] scan reset
@@ -59,10 +85,3 @@ interface [Ip(Str)] [Port(Dec)] memory process [ProcessId(Dec)] write [Address(H
 ```
 interface [Ip(Str)] [Port(Dec)] shutdown
 ```
-
-# Version Differences
-
-| Function        | Pattern                                                     | Version            |
-|-----------------|-------------------------------------------------------------|--------------------|
-| KeSuspendThread | A8 01 0F 85 ?? ?? ?? ?? 48 8B ?? E8 ?? ?? ?? ?? 89 44 24 ?? | 7601 - 22621.1413  |
-| KeResumeThread  | 48 8B ?? E8 ?? ?? ?? ?? 65 48 8B 14 25 88 01 00 00 8B       | 17763 - 22621.1413 |
