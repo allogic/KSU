@@ -8,14 +8,20 @@
 #include "baseaddr.h"
 #include "memory.h"
 #include "config.h"
+#include "version.h"
 
 ///////////////////////////////////////////////////////////////
 // Local Variables
 ///////////////////////////////////////////////////////////////
 
 static BOOL sDriverIsShuttingDown = FALSE;
-static KEVENT sTcpServerStoppedEvent = { 0 };
 static HANDLE sTcpServerThreadHandle = INVALID_HANDLE_VALUE;
+
+#ifdef USE_TCP_SERVER
+
+static KEVENT sTcpServerStoppedEvent = { 0 };
+
+#endif
 
 ///////////////////////////////////////////////////////////////
 // Private API
@@ -577,6 +583,9 @@ DriverEntry(
 
   // Setup driver unload procedure
   Driver->DriverUnload = DriverUnload;
+
+  // Dump system version
+  KmDumpSystemVersion();
 
   // Raise IRQ to dispatch level
   KIRQL prevInterruptRequestLevel = PASSIVE_LEVEL;

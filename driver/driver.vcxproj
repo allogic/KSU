@@ -207,6 +207,7 @@
     <ClInclude Include="socket.h" />
     <ClInclude Include="thread.h" />
     <ClInclude Include="undoc.h" />
+    <ClInclude Include="version.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="except.c" />
@@ -217,6 +218,7 @@
     <ClCompile Include="scanner.c" />
     <ClCompile Include="socket.c" />
     <ClCompile Include="thread.c" />
+    <ClCompile Include="version.c" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
