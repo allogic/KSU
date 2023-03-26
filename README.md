@@ -15,6 +15,7 @@ sc.exe create ksu type=kernel binPath="C:\driver.sys" // create system service (
 kdu.exe -dse 0                                        // disable DSE
 sc.exe start/stop ksu                                 // start or stop driver
 kdu.exe -dse 6                                        // enable DSE (some AC's require DSE to be enabled)
+interface.exe 127.0.0.1 9095                          // issue a variety of commands
 ```
 
 An alternative way is to disable `Driver Signature Enforcement` by holding `Shift` and reboot. Once windows is booting up again click `Troubleshoot/Advanced Options/Startup Settings/Restart`. Almost every anti-cheat software doesn't start since `Driver Signature Enforcement` has been disabled permanently till the next reboot.
@@ -56,5 +57,5 @@ interface [Ip(Str)] [Port(Dec)] memory process [ProcessId(Dec)] write [Address(H
 ## Shutdown
 
 ```
-shutdown
+interface [Ip(Str)] [Port(Dec)] shutdown
 ```
