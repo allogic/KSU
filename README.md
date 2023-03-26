@@ -13,7 +13,6 @@ sc.exe create ksu type=kernel binPath="C:\driver.sys" // create system service (
 kdu.exe -dse 0                                        // disable DSE
 sc.exe start/stop ksu                                 // start or stop driver
 kdu.exe -dse 6                                        // enable DSE (some AC's require DSE to be enabled)
-interface.exe 127.0.0.1 9095                          // issue a variety of commands
 ```
 
 An alternative way is to disable `Driver Signature Enforcement` by holding `Shift` and reboot. Once windows is booting up again click `Troubleshoot/Advanced Options/Startup Settings/Restart`. Almost every anti-cheat software doesn't start since `Driver Signature Enforcement` has been disabled permanently till the next reboot.
@@ -27,11 +26,11 @@ This API is still under construction.
 A process page table iterator.
 
 ```
-scan reset
-scan aob [ProcessId(Dec)] [Bytes(Hex)]
-scan changed
-scan unchanged
-scan undo
+interface [Ip(Str)] [Port(Dec)] scan reset
+interface [Ip(Str)] [Port(Dec)] scan aob [ProcessId(Dec)] [Bytes(Hex)]
+interface [Ip(Str)] [Port(Dec)] scan changed
+interface [Ip(Str)] [Port(Dec)] scan unchanged
+interface [Ip(Str)] [Port(Dec)] scan undo
 ```
 
 ## Debug Breakpoints
@@ -39,17 +38,17 @@ scan undo
 This API is still under construction.
 
 ```
-break set [Address(Hex)]
-break clear [Address(Hex)]
+interface [Ip(Str)] [Port(Dec)] break set [Address(Hex)]
+interface [Ip(Str)] [Port(Dec)] break clear [Address(Hex)]
 ```
 
 ## Memory Operations
 
 ```
-memory kernel read [Address(Hex)] [Size(Dec)]
-memory kernel write [Address(Hex)] [Bytes(Hex)]
-memory process [ProcessId(Dec)] read [Address(Hex)] [Size(Dec)]
-memory process [ProcessId(Dec)] write [Address(Hex)] [Bytes(Hex)]
+interface [Ip(Str)] [Port(Dec)] memory kernel read [Address(Hex)] [Size(Dec)]
+interface [Ip(Str)] [Port(Dec)] memory kernel write [Address(Hex)] [Bytes(Hex)]
+interface [Ip(Str)] [Port(Dec)] memory process [ProcessId(Dec)] read [Address(Hex)] [Size(Dec)]
+interface [Ip(Str)] [Port(Dec)] memory process [ProcessId(Dec)] write [Address(Hex)] [Bytes(Hex)]
 ```
 
 ## Shutdown
