@@ -59,3 +59,10 @@ interface [Ip(Str)] [Port(Dec)] memory process [ProcessId(Dec)] write [Address(H
 ```
 interface [Ip(Str)] [Port(Dec)] shutdown
 ```
+
+# Version Differences
+
+| Function        | Pattern                                                     | Version            |
+|-----------------|-------------------------------------------------------------|--------------------|
+| KeSuspendThread | A8 01 0F 85 ?? ?? ?? ?? 48 8B ?? E8 ?? ?? ?? ?? 89 44 24 ?? | 7601 - 22621.1413  |
+| KeResumeThread  | 48 8B ?? E8 ?? ?? ?? ?? 65 48 8B 14 25 88 01 00 00 8B       | 17763 - 22621.1413 |
