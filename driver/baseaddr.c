@@ -1,5 +1,6 @@
 #include "baseaddr.h"
 #include "undoc.h"
+#include "except.h"
 
 ///////////////////////////////////////////////////////////////
 // Disclaimer
@@ -35,6 +36,9 @@
 PVOID gNtosKrnlBase = NULL;
 UINT32 gNtosKrnlSize = 0;
 
+UINT64 gKeSuspendThreadOffset = 0;
+UINT64 gKeResumeThreadOffset = 0;
+
 ///////////////////////////////////////////////////////////////
 // Private API
 ///////////////////////////////////////////////////////////////
@@ -45,6 +49,13 @@ KmGetKernelModuleBase(
   PUNICODE_STRING ModuleName,
   PUINT32 Size);
 
+UINT64
+KmSearchKernelOffsetByPatternWithMask(
+  PVOID Base,
+  UINT32 Size,
+  PCHAR Pattern,
+  PCHAR Mask);
+
 ///////////////////////////////////////////////////////////////
 // Implementation
 ///////////////////////////////////////////////////////////////
@@ -53,12 +64,32 @@ VOID
 KmInitializeBaseAddresses(
   PDRIVER_OBJECT Driver)
 {
+  // Get kernel base address
   UNICODE_STRING ntosKrnlImageName = RTL_CONSTANT_STRING(L"ntoskrnl.exe");
   gNtosKrnlBase = KmGetKernelModuleBase(Driver, &ntosKrnlImageName, &gNtosKrnlSize);
 
+  if (gNtosKrnlBase)
+  {
+    // Search KeSuspendThread offset
+    gKeSuspendThreadOffset = KmSearchKernelOffsetByPatternWithMask(
+      gNtosKrnlBase,
+      gNtosKrnlSize,
+      // A8  01  0F  85  ??  ??  ??  ??  48  8B  ??  E8  ??  ??  ??  ??  89  44  24  ??
+      "\xA8\x01\x0F\x85\x00\x00\x00\x00\x48\x8B\x00\xE8\x00\x00\x00\x00\x89\x44\x24\x00",
+      "\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\xFF\x00\xFF\xFF\xFF\xFF\x00\x00\x00\xFF");
 
+    // Search KeResumeThread offset
+    gKeResumeThreadOffset = KmSearchKernelOffsetByPatternWithMask(
+      gNtosKrnlBase,
+      gNtosKrnlSize,
+      // 48  8B  ??  E8  ??  ??  ??  ??  65  48  8B  14  25  88  01  00  00  8B
+      "\x48\x8B\x00\xE8\x00\x00\x00\x00\x65\x48\x8B\x14\x25\x88\x01\x00\x00\x8B",
+      "\x00\x00\xFF\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00");
+  }
 
-  LOG("ntoskrnl at %p\n", gNtosKrnlBase);
+  LOG("NtosKrnl at %p\n", gNtosKrnlBase);
+  LOG("KeSuspendThreadOffset at %p\n", (PVOID)gKeSuspendThreadOffset); // Should be ~0x2F6010 right?
+  LOG("KeResumeThread at %p\n", (PVOID)gKeResumeThreadOffset); // Should be ~0x2F6754 right?
 }
 
 PVOID
@@ -96,4 +127,38 @@ KmGetKernelModuleBase(
   }
 
   return NULL;
+}
+
+UINT64
+KmSearchKernelOffsetByPatternWithMask(
+  PVOID Base,
+  UINT32 Size,
+  PCHAR Pattern,
+  PCHAR Mask)
+{
+  UINT64 result = 0;
+
+  // Scan memory for pattern with mask
+  UINT32 patternSize = (UINT32)strlen(Pattern);
+  for (PBYTE ptr = Base; ptr <= ((((PBYTE)Base) + Size) - patternSize); ptr++)
+  {
+    BOOL found = TRUE;
+
+    for (UINT32 i = 0; i < patternSize; i++)
+    {
+      if (ptr[i] != Pattern[i] && Mask[i] == 0)
+      {
+        found = FALSE;
+        break;
+      }
+    }
+
+    if (found)
+    {
+      result = (UINT64)ptr;
+      break;
+    }
+  }
+
+  return result;
 }

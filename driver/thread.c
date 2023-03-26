@@ -30,12 +30,12 @@ KmInitializeThreading()
 {
   if (sKeSuspendThread == NULL)
   {
-    sKeSuspendThread = (KESUSPENDTHREADPROC)(((UINT64)gNtosKrnlBase) + 0x2F6010);
+    sKeSuspendThread = (KESUSPENDTHREADPROC)(((UINT64)gNtosKrnlBase) + gKeSuspendThreadOffset);
   }
 
   if (sKeResumeThread == NULL)
   {
-    sKeResumeThread = (KERESUMETHREADPROC)(((UINT64)gNtosKrnlBase) + 0x2F6754);
+    sKeResumeThread = (KERESUMETHREADPROC)(((UINT64)gNtosKrnlBase) + gKeResumeThreadOffset);
   }
 }
 

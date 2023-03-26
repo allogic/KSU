@@ -196,6 +196,7 @@
     <FilesToPackage Include="$(TargetPath)" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="config.h" />
     <ClInclude Include="core.h" />
     <ClInclude Include="except.h" />
     <ClInclude Include="baseaddr.h" />

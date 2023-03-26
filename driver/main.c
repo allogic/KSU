@@ -7,6 +7,7 @@
 #include "thread.h"
 #include "baseaddr.h"
 #include "memory.h"
+#include "config.h"
 
 ///////////////////////////////////////////////////////////////
 // Local Variables
@@ -19,6 +20,8 @@ static HANDLE sTcpServerThreadHandle = INVALID_HANDLE_VALUE;
 ///////////////////////////////////////////////////////////////
 // Private API
 ///////////////////////////////////////////////////////////////
+
+#ifdef USE_TCP_SERVER
 
 NTSTATUS
 KmShutdownRequest(
@@ -40,6 +43,8 @@ VOID
 KmTcpServerThread(
   PVOID Context);
 
+#endif
+
 VOID
 DriverUnload(
   PDRIVER_OBJECT Driver);
@@ -52,6 +57,8 @@ DriverEntry(
 ///////////////////////////////////////////////////////////////
 // Implementation
 ///////////////////////////////////////////////////////////////
+
+#ifdef USE_TCP_SERVER
 
 NTSTATUS
 KmShutdownRequest(
@@ -265,7 +272,7 @@ KmMemoryRequest(
                     PBYTE bytes = ExAllocatePoolWithTag(NonPagedPool, numberOfBytes, MEMORY_TAG);
                     if (bytes)
                     {
-                      // Read process memory
+                      // Read kernel memory
                       status = KmReadKernelMemory(bytes, (PVOID)baseAddress, numberOfBytes);
 
                       for (UINT32 i = 0; i < numberOfBytes; i++)
@@ -301,7 +308,7 @@ KmMemoryRequest(
                       status = KmRecvSafe(Socket, bytes, numberOfBytes, 0);
                       if (NT_SUCCESS(status))
                       {
-                        // Write process memory
+                        // Write kernel memory
                         status = KmWriteKernelMemory((PVOID)baseAddress, bytes, numberOfBytes);
                       }
 
@@ -534,6 +541,8 @@ KmTcpServerThread(
   KeSetEvent(&sTcpServerStoppedEvent, IO_NO_INCREMENT, FALSE);
 }
 
+#endif
+
 ///////////////////////////////////////////////////////////////
 // Driver Entry
 ///////////////////////////////////////////////////////////////
@@ -544,8 +553,12 @@ DriverUnload(
 {
   UNREFERENCED_PARAMETER(Driver);
 
+#ifdef USE_TCP_SERVER
+
   // Wait till TCP server has beed stopped
   KeWaitForSingleObject(&sTcpServerStoppedEvent, Executive, KernelMode, FALSE, NULL);
+
+#endif
 
   // Reset scanner which will free all memory
   KmResetScanner();
@@ -560,23 +573,55 @@ DriverEntry(
 {
   UNREFERENCED_PARAMETER(RegPath);
 
-  LOG("Driver started\n");
+  NTSTATUS status = STATUS_SUCCESS;
 
   // Setup driver unload procedure
   Driver->DriverUnload = DriverUnload;
 
-  // Initialize base addresses
-  KmInitializeBaseAddresses(Driver);
+  // Raise IRQ to dispatch level
+  KIRQL prevInterruptRequestLevel = PASSIVE_LEVEL;
+  KeRaiseIrql(DISPATCH_LEVEL, &prevInterruptRequestLevel);
 
-  // Initialize thread API
-  KmInitializeThreading();
+  __try
+  {
+    // Initialize base addresses
+    KmInitializeBaseAddresses(Driver);
 
-  // Initialize events
-  KeInitializeEvent(&sTcpServerStoppedEvent, SynchronizationEvent, FALSE);
+    // Initialize threading
+    KmInitializeThreading();
 
-  // Initialize memory scanner
-  KmInitializeScanner();
+    // Initialize memory scanner
+    KmInitializeScanner();
 
-  // Create TCP listen thread
-  return PsCreateSystemThread(&sTcpServerThreadHandle, THREAD_ALL_ACCESS, 0, 0, 0, KmTcpServerThread, 0);
+#ifdef USE_TCP_SERVER
+
+    // Initialize events
+    KeInitializeEvent(&sTcpServerStoppedEvent, SynchronizationEvent, FALSE);
+
+#endif
+  }
+  __except (DEFAULT_EXCEPTION_HANDLER)
+  {
+    status = STATUS_UNHANDLED_EXCEPTION;
+  }
+
+  // Lower IRQ to previous level
+  KeLowerIrql(prevInterruptRequestLevel);
+
+  if (NT_SUCCESS(status))
+  {
+#ifdef USE_TCP_SERVER
+
+    // Create TCP listen thread
+    status = PsCreateSystemThread(&sTcpServerThreadHandle, THREAD_ALL_ACCESS, 0, 0, 0, KmTcpServerThread, 0);
+
+#endif
+
+    if (NT_SUCCESS(status))
+    {
+      LOG("Driver started\n");
+    }
+  }
+
+  return status;
 }

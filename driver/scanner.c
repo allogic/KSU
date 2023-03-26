@@ -71,9 +71,9 @@ KmIterateBytes(
   {
     BOOL found = TRUE;
 
-    for (UINT32 j = 0; j < operationEntry->NumberOfBytes; j++)
+    for (UINT32 i = 0; i < operationEntry->NumberOfBytes; i++)
     {
-      if (ptr[j] != operationEntry->Bytes[j])
+      if (ptr[i] != operationEntry->Bytes[i])
       {
         found = FALSE;
         break;
