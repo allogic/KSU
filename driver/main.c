@@ -348,12 +348,21 @@ KmMemoryRequest(
                       PBYTE bytes = ExAllocatePoolWithTag(NonPagedPool, numberOfBytes, MEMORY_TAG);
                       if (bytes)
                       {
-                        // Read process memory
-                        status = KmReadProcessMemory(processId, bytes, (PVOID)baseAddress, numberOfBytes);
-
-                        for (UINT32 i = 0; i < numberOfBytes; i++)
+                        // Open process
+                        PEPROCESS process = NULL;
+                        status = PsLookupProcessByProcessId((HANDLE)processId, &process);
+                        if (NT_SUCCESS(status))
                         {
-                          LOG("%02X\n", bytes[i]);
+                          // Read process memory
+                          status = KmReadProcessMemory(process, bytes, (PVOID)baseAddress, numberOfBytes);
+
+                          for (UINT32 i = 0; i < numberOfBytes; i++)
+                          {
+                            LOG("%02X\n", bytes[i]);
+                          }
+
+                          // Close process
+                          ObDereferenceObject(process);
                         }
 
                         // Free bytes
@@ -384,8 +393,17 @@ KmMemoryRequest(
                         status = KmRecvSafe(Socket, bytes, numberOfBytes, 0);
                         if (NT_SUCCESS(status))
                         {
-                          // Write process memory
-                          status = KmWriteProcessMemory(processId, (PVOID)baseAddress, bytes, numberOfBytes);
+                          // Open process
+                          PEPROCESS process;
+                          status = PsLookupProcessByProcessId((HANDLE)processId, &process);
+                          if (NT_SUCCESS(status))
+                          {
+                            // Write process memory
+                            status = KmWriteProcessMemory(process, (PVOID)baseAddress, bytes, numberOfBytes);
+
+                            // Close process
+                            ObDereferenceObject(process);
+                          }
                         }
 
                         // Free bytes

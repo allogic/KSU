@@ -270,7 +270,7 @@ UmMemoryRequest(
                   if (bytes)
                   {
                     // Copy bytes into buffer
-                    UmHexToBytes(bytes, Argv[7]);
+                    UmHexToBytes(Argv[7], bytes);
 
                     // Send buffer
                     status = UmSendSafe(Socket, bytes, numberOfBytes, 0);
@@ -324,7 +324,7 @@ UmMemoryRequest(
                 if (status == 0)
                 {
                   // Send number of bytes
-                  UINT32 numberOfBytes = (UINT32)strlen(Argv[7]) / 2;
+                  UINT32 numberOfBytes = (UINT32)strlen(Argv[8]) / 2;
                   status = UmSendSafe(Socket, &numberOfBytes, sizeof(UINT32), 0);
                   if (status == 0)
                   {
@@ -333,7 +333,7 @@ UmMemoryRequest(
                     if (bytes)
                     {
                       // Copy bytes into buffer
-                      UmHexToBytes(bytes, Argv[7]);
+                      UmHexToBytes(Argv[8], bytes);
 
                       // Send buffer
                       status = UmSendSafe(Socket, bytes, numberOfBytes, 0);

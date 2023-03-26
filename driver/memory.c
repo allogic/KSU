@@ -1,4 +1,5 @@
 #include "memory.h"
+#include "undoc.h"
 
 ///////////////////////////////////////////////////////////////
 // Private API
@@ -122,62 +123,50 @@ KmWriteKernelMemory(
 
 NTSTATUS
 KmReadProcessMemory(
-  UINT32 Pid,
+  PEPROCESS Process,
   PVOID Destination,
   PVOID Source,
   UINT32 Size)
 {
   NTSTATUS status = STATUS_UNSUCCESSFUL;
 
-  // Open process
-  PEPROCESS process = NULL;
-  status = PsLookupProcessByProcessId((HANDLE)Pid, &process);
-  if (NT_SUCCESS(status))
-  {
-    // Attach to process
-    KAPC_STATE apc = { 0 };
-    KeStackAttachProcess(process, &apc);
+  // Attach to process
+  KAPC_STATE apc = { 0 };
+  KeStackAttachProcess(Process, &apc);
 
-    // Read memory
-    status = KmReadMemory(Destination, Source, Size);
+  PVOID base = PsGetProcessSectionBaseAddress(Process);
+  LOG("process base at %p\n", base);
 
-    // Detach from process
-    KeUnstackDetachProcess(&apc);
+  // Read memory
+  status = KmReadMemory(Destination, Source, Size);
 
-    // Close process
-    ObDereferenceObject(process);
-  }
+  // Detach from process
+  KeUnstackDetachProcess(&apc);
 
   return status;
 }
 
 NTSTATUS
 KmWriteProcessMemory(
-  UINT32 Pid,
+  PEPROCESS Process,
   PVOID Destination,
   PVOID Source,
   UINT32 Size)
 {
   NTSTATUS status = STATUS_UNSUCCESSFUL;
 
-  // Open process
-  PEPROCESS process;
-  status = PsLookupProcessByProcessId((HANDLE)Pid, &process);
-  if (NT_SUCCESS(status))
-  {
-    // Attach to process
-    KAPC_STATE apc;
-    KeStackAttachProcess(process, &apc);
+  // Attach to process
+  KAPC_STATE apc;
+  KeStackAttachProcess(Process, &apc);
 
-    // Write memory
-    status = KmWriteMemory(Destination, Source, Size);
+  PVOID base = PsGetProcessSectionBaseAddress(Process);
+  LOG("process base at %p\n", base);
 
-    // Detach from process
-    KeUnstackDetachProcess(&apc);
+  // Write memory
+  status = KmWriteMemory(Destination, Source, Size);
 
-    // Close process
-    ObDereferenceObject(process);
-  }
+  // Detach from process
+  KeUnstackDetachProcess(&apc);
 
   return status;
 }

@@ -21,14 +21,14 @@ KmWriteKernelMemory(
 
 NTSTATUS
 KmReadProcessMemory(
-  UINT32 Pid,
+  PEPROCESS Process,
   PVOID Destination,
   PVOID Source,
   UINT32 Size);
 
 NTSTATUS
 KmWriteProcessMemory(
-  UINT32 Pid,
+  PEPROCESS Process,
   PVOID Destination,
   PVOID Source,
   UINT32 Size);
