@@ -53,6 +53,7 @@ UINT64
 KmSearchKernelOffsetByPatternWithMask(
   PVOID Base,
   UINT32 Size,
+  UINT32 NumberOfBytes,
   PCHAR Pattern,
   PCHAR Mask);
 
@@ -74,6 +75,7 @@ KmInitializeBaseAddresses(
     gKeSuspendThreadOffset = KmSearchKernelOffsetByPatternWithMask(
       gNtosKrnlBase,
       gNtosKrnlSize,
+      20,
       // A8  01  0F  85  ??  ??  ??  ??  48  8B  ??  E8  ??  ??  ??  ??  89  44  24  ??
       "\xA8\x01\x0F\x85\x00\x00\x00\x00\x48\x8B\x00\xE8\x00\x00\x00\x00\x89\x44\x24\x00",
       "\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\xFF\x00\xFF\xFF\xFF\xFF\x00\x00\x00\xFF");
@@ -82,14 +84,15 @@ KmInitializeBaseAddresses(
     gKeResumeThreadOffset = KmSearchKernelOffsetByPatternWithMask(
       gNtosKrnlBase,
       gNtosKrnlSize,
+      18,
       // 48  8B  ??  E8  ??  ??  ??  ??  65  48  8B  14  25  88  01  00  00  8B
       "\x48\x8B\x00\xE8\x00\x00\x00\x00\x65\x48\x8B\x14\x25\x88\x01\x00\x00\x8B",
       "\x00\x00\xFF\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00");
   }
 
   LOG("NtosKrnl at %p\n", gNtosKrnlBase);
-  LOG("KeSuspendThreadOffset at %p\n", (PVOID)gKeSuspendThreadOffset); // Should be ~0x2F6010 right?
-  LOG("KeResumeThread at %p\n", (PVOID)gKeResumeThreadOffset); // Should be ~0x2F6754 right?
+  LOG("KeSuspendThread at %p\n", (PVOID)gKeSuspendThreadOffset);
+  LOG("KeResumeThread at %p\n", (PVOID)gKeResumeThreadOffset);
 }
 
 PVOID
@@ -133,20 +136,20 @@ UINT64
 KmSearchKernelOffsetByPatternWithMask(
   PVOID Base,
   UINT32 Size,
+  UINT32 NumberOfBytes,
   PCHAR Pattern,
   PCHAR Mask)
 {
   UINT64 result = 0;
 
-  // Scan memory for pattern with mask
-  UINT32 patternSize = (UINT32)strlen(Pattern);
-  for (PBYTE ptr = Base; ptr <= ((((PBYTE)Base) + Size) - patternSize); ptr++)
+  // Search memory for pattern with mask
+  for (PBYTE ptr = Base; ptr <= ((((PBYTE)Base) + Size) - NumberOfBytes); ptr++)
   {
     BOOL found = TRUE;
 
-    for (UINT32 i = 0; i < patternSize; i++)
+    for (UINT32 i = 0; i < NumberOfBytes; i++)
     {
-      if (ptr[i] != Pattern[i] && Mask[i] == 0)
+      if (((PBYTE)Mask)[i] == 0 && ptr[i] != ((PBYTE)Pattern)[i])
       {
         found = FALSE;
         break;
@@ -155,7 +158,7 @@ KmSearchKernelOffsetByPatternWithMask(
 
     if (found)
     {
-      result = (UINT64)ptr;
+      result = ((UINT64)ptr) - ((UINT64)Base);
       break;
     }
   }
