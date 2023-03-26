@@ -1,5 +1,7 @@
 # Kernel Script Utility
 
+An x64 Kernel-Mode rootkit written in C.
+
 # Compiling the Project
 
 Open the VisualStudio solution and build for `Debug` or `Release` bitness `x64`.
@@ -27,11 +29,11 @@ This API is still under construction.
 A process page table iterator.
 
 ```
-scan reset
-scan aob [ProcessId(Dec)] [Bytes(Hex)]
-scan changed
-scan unchanged
-scan undo
+interface [Ip(Str)] [Port(Dec)] scan reset
+interface [Ip(Str)] [Port(Dec)] scan aob [ProcessId(Dec)] [Bytes(Hex)]
+interface [Ip(Str)] [Port(Dec)] scan changed
+interface [Ip(Str)] [Port(Dec)] scan unchanged
+interface [Ip(Str)] [Port(Dec)] scan undo
 ```
 
 ## Debug Breakpoints
@@ -39,21 +41,21 @@ scan undo
 This API is still under construction.
 
 ```
-break set [Address(Hex)]
-break clear [Address(Hex)]
+interface [Ip(Str)] [Port(Dec)] break set [Address(Hex)]
+interface [Ip(Str)] [Port(Dec)] break clear [Address(Hex)]
 ```
 
 ## Memory Operations
 
 ```
-memory kernel read [Address(Hex)] [Size(Dec)]
-memory kernel write [Address(Hex)] [Bytes(Hex)]
-memory process [ProcessId(Dec)] read [Address(Hex)] [Size(Dec)]
-memory process [ProcessId(Dec)] write [Address(Hex)] [Bytes(Hex)]
+interface [Ip(Str)] [Port(Dec)] memory kernel read [Address(Hex)] [Size(Dec)]
+interface [Ip(Str)] [Port(Dec)] memory kernel write [Address(Hex)] [Bytes(Hex)]
+interface [Ip(Str)] [Port(Dec)] memory process [ProcessId(Dec)] read [Address(Hex)] [Size(Dec)]
+interface [Ip(Str)] [Port(Dec)] memory process [ProcessId(Dec)] write [Address(Hex)] [Bytes(Hex)]
 ```
 
 ## Shutdown
 
 ```
-shutdown
+interface [Ip(Str)] [Port(Dec)] shutdown
 ```
