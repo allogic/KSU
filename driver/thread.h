@@ -12,6 +12,14 @@ VOID
 KmInitializeThreading();
 
 NTSTATUS
+KmSuspendProcess(
+  EPROCESS* Process);
+
+NTSTATUS
+KmResumeProcess(
+  EPROCESS* Process);
+
+NTSTATUS
 KmSuspendThread(
   ETHREAD* Thread,
   PUINT32 SuspendCount);

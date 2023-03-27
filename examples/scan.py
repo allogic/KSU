@@ -10,7 +10,7 @@ bytes = 'FF00FF00FF00'
 cmd = 'interface {} {} scan reset'.format(ip, port)
 subprocess.run(cmd, capture_output=True, text=True)
 
-# First scan array of bytes (Must be executed only once or right after restting the scanner)
+# First scan array of bytes (Must be executed only once or right after resetting the scanner)
 cmd = 'interface {} {} scan aob {} {}'.format(ip, port, pid, bytes)
 scans = subprocess.run(cmd, capture_output=True, text=True).stdout.strip('\n').splitlines()
 

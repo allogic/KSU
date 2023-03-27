@@ -205,6 +205,8 @@
     <ClInclude Include="pagetbl.h" />
     <ClInclude Include="scanner.h" />
     <ClInclude Include="socket.h" />
+    <ClInclude Include="structs\EPROCESS.h" />
+    <ClInclude Include="structs\KPROCESS.h" />
     <ClInclude Include="thread.h" />
     <ClInclude Include="undoc.h" />
     <ClInclude Include="version.h" />

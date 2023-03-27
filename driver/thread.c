@@ -30,13 +30,63 @@ KmInitializeThreading()
 {
   if (sKeSuspendThread == NULL)
   {
-    sKeSuspendThread = (KESUSPENDTHREADPROC)(((UINT64)gNtosKrnlBase) + gKeSuspendThreadOffset);
+    sKeSuspendThread = (KESUSPENDTHREADPROC)(((UINT64)gNtosKrnlBase) + 0x20E3CC);
   }
 
   if (sKeResumeThread == NULL)
   {
-    sKeResumeThread = (KERESUMETHREADPROC)(((UINT64)gNtosKrnlBase) + gKeResumeThreadOffset);
+    sKeResumeThread = (KERESUMETHREADPROC)(((UINT64)gNtosKrnlBase) + 0x3695F4);
   }
+}
+
+NTSTATUS
+KmSuspendProcess(
+  EPROCESS* Process)
+{
+  NTSTATUS status = STATUS_UNSUCCESSFUL;
+
+  // Protect process from being rundown
+  if (ExAcquireRundownProtection(&Process->RundownProtect))
+  {
+    // Iterate process threads
+    PLIST_ENTRY threadListEntry = Process->ThreadListHead.Flink;
+    while (threadListEntry != &Process->ThreadListHead)
+    {
+      // Get thread
+      //ETHREAD* thread = CONTAINING_RECORD(threadListEntry, ETHREAD, ThreadListEntry);
+
+      //if (thread)
+      //{
+      //  LOG("%p\n", thread);
+      //}
+
+      LOG("%p\n", threadListEntry);
+
+      // Suspend thread
+      //status = KmSuspendThread(thread, NULL);
+
+      // Increment to the next record
+      threadListEntry = threadListEntry->Flink;
+    }
+
+    // Release rundown protection
+    ExReleaseRundownProtection(&Process->RundownProtect);
+
+    status = STATUS_SUCCESS;
+  }
+
+  return status;
+}
+
+NTSTATUS
+KmResumeProcess(
+  EPROCESS* Process)
+{
+  UNREFERENCED_PARAMETER(Process);
+
+  NTSTATUS status = STATUS_UNSUCCESSFUL;
+
+  return status;
 }
 
 NTSTATUS
@@ -56,8 +106,12 @@ KmSuspendThread(
     }
     else
     {
-      *SuspendCount = sKeSuspendThread(&Thread->Tcb);
-      status = STATUS_SUCCESS;
+      UINT32 suspendCount = sKeSuspendThread(&Thread->Tcb);
+
+      if (SuspendCount)
+      {
+        *SuspendCount = suspendCount;
+      }
 
       // If deletion was started after we suspended then wake up the thread
       //if (Thread->CrossThreadFlags & PS_CROSS_THREAD_FLAGS_TERMINATED)
@@ -70,6 +124,8 @@ KmSuspendThread(
 
     // Release rundown protection
     ExReleaseRundownProtection(&Thread->RundownProtect);
+
+    status = STATUS_SUCCESS;
   }
   else
   {
@@ -86,7 +142,13 @@ KmResumeThread(
 {
   NTSTATUS status = STATUS_UNSUCCESSFUL;
 
-  *SuspendCount = sKeResumeThread(&Thread->Tcb, 1);
+  UINT32 suspendCount = sKeResumeThread(&Thread->Tcb, 1);
+
+  if (SuspendCount)
+  {
+    *SuspendCount = suspendCount;
+  }
+
   status = STATUS_SUCCESS;
 
   return status;

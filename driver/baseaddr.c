@@ -7,24 +7,26 @@
 ///////////////////////////////////////////////////////////////
 
 /*
-* KeSuspendThread 7601-22621.819 -> 0x140648a77
+* KeSuspendThread 7601-22621.819  -> 0x140648a77
+* KeSuspendThread 7601-22621.1413 -> 0x14020e3cc
 *
 * A8 01 0F 85 ?? ?? ?? ?? 48 8B ?? E8 ?? ?? ?? ?? 89 44 24 ??
 *
 * A8 01                         test al, 1
 * 0F 85 ?? ?? ?? ??             jnz
 * 48 8B CE                      mov rcx, rsi
-* E8 6B 3E DA FF                call KeSuspendThread -> 0x1402f6010
+* E8 6B 3E DA FF                call KeSuspendThread
 * 89 44 24 ??                   mov [rsp+??],eax
 */
 
 /*
-* KeResumeThread 17763-22621.819 -> 0x1406ed832
+* KeResumeThread 17763-22621.819  -> 0x1406ed832
+* KeResumeThread 17763-22621.1413 -> 0x1403695f4
 *
 * 48 8B ?? E8 ?? ?? ?? ?? 65 48 8B 14 25 88 01 00 00 8B
 *
 * 48 8B ??                      mov ???, rcx
-* E8 ?? ?? ?? ??                call KeResumeThread -> 0x1402f6754
+* E8 ?? ?? ?? ??                call KeResumeThread
 * 65 48 8B 14 25 88 01 00 00    mov rdx, gs:188h
 * 8B
 */
@@ -35,9 +37,6 @@
 
 PVOID gNtosKrnlBase = NULL;
 UINT32 gNtosKrnlSize = 0;
-
-UINT64 gKeSuspendThreadOffset = 0;
-UINT64 gKeResumeThreadOffset = 0;
 
 ///////////////////////////////////////////////////////////////
 // Private API
@@ -68,31 +67,6 @@ KmInitializeBaseAddresses(
   // Get kernel base address
   UNICODE_STRING ntosKrnlImageName = RTL_CONSTANT_STRING(L"ntoskrnl.exe");
   gNtosKrnlBase = KmGetKernelModuleBase(Driver, &ntosKrnlImageName, &gNtosKrnlSize);
-
-  if (gNtosKrnlBase)
-  {
-    // Search KeSuspendThread offset
-    gKeSuspendThreadOffset = KmSearchKernelOffsetByPatternWithMask(
-      gNtosKrnlBase,
-      gNtosKrnlSize,
-      20,
-      // A8  01  0F  85  ??  ??  ??  ??  48  8B  ??  E8  ??  ??  ??  ??  89  44  24  ??
-      "\xA8\x01\x0F\x85\x00\x00\x00\x00\x48\x8B\x00\xE8\x00\x00\x00\x00\x89\x44\x24\x00",
-      "\x00\x00\x00\x00\xFF\xFF\xFF\xFF\x00\x00\xFF\x00\xFF\xFF\xFF\xFF\x00\x00\x00\xFF");
-
-    // Search KeResumeThread offset
-    gKeResumeThreadOffset = KmSearchKernelOffsetByPatternWithMask(
-      gNtosKrnlBase,
-      gNtosKrnlSize,
-      18,
-      // 48  8B  ??  E8  ??  ??  ??  ??  65  48  8B  14  25  88  01  00  00  8B
-      "\x48\x8B\x00\xE8\x00\x00\x00\x00\x65\x48\x8B\x14\x25\x88\x01\x00\x00\x8B",
-      "\x00\x00\xFF\x00\xFF\xFF\xFF\xFF\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00");
-  }
-
-  LOG("NtosKrnl: %p\n", gNtosKrnlBase);
-  LOG("KeSuspendThread: %p\n", (PVOID)gKeSuspendThreadOffset);
-  LOG("KeResumeThread: %p\n", (PVOID)gKeResumeThreadOffset);
 }
 
 PVOID
@@ -158,7 +132,7 @@ KmSearchKernelOffsetByPatternWithMask(
 
     if (found)
     {
-      result = ((UINT64)ptr) - ((UINT64)Base);
+      result = (UINT64)ptr;
       break;
     }
   }
