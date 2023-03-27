@@ -195,8 +195,27 @@ KmScanRequest(
                     // Scan array of bytes
                     KmFirstScanArrayOfBytes((PVOID)process->DirectoryTableBase, numberOfBytes, bytes);
 
-                    // Print current findings
-                    KmPrintScanResults();
+                    // Get current operation entry
+                    POPERATION_ENTRY operationEntry = KmGetCurrentScanOperation();
+
+                    // Send scan count
+                    status = KmSendSafe(Socket, &operationEntry->ScanCount, sizeof(UINT32), 0);
+                    if (NT_SUCCESS(status))
+                    {
+                      // Iterate scan list
+                      PLIST_ENTRY scanListEntry = operationEntry->ScanList.Flink;
+                      while (scanListEntry != &operationEntry->ScanList)
+                      {
+                        // Get scan entry
+                        PSCAN_ENTRY scanEntry = CONTAINING_RECORD(scanListEntry, SCAN_ENTRY, List);
+
+                        // Send address
+                        status = KmSendSafe(Socket, &scanEntry->Address, sizeof(UINT64), 0);
+
+                        // Increment to the next record
+                        scanListEntry = scanListEntry->Flink;
+                      }
+                    }
 
                     // Close process
                     ObDereferenceObject(process);
@@ -216,8 +235,27 @@ KmScanRequest(
           // Scan changed
           KmNextScanChanged();
 
-          // Print current findings
-          KmPrintScanResults();
+          // Get current operation entry
+          POPERATION_ENTRY operationEntry = KmGetCurrentScanOperation();
+
+          // Send scan count
+          status = KmSendSafe(Socket, &operationEntry->ScanCount, sizeof(UINT32), 0);
+          if (NT_SUCCESS(status))
+          {
+            // Iterate scan list
+            PLIST_ENTRY scanListEntry = operationEntry->ScanList.Flink;
+            while (scanListEntry != &operationEntry->ScanList)
+            {
+              // Get scan entry
+              PSCAN_ENTRY scanEntry = CONTAINING_RECORD(scanListEntry, SCAN_ENTRY, List);
+
+              // Send address
+              status = KmSendSafe(Socket, &scanEntry->Address, sizeof(UINT64), 0);
+
+              // Increment to the next record
+              scanListEntry = scanListEntry->Flink;
+            }
+          }
 
           break;
         }
@@ -226,8 +264,27 @@ KmScanRequest(
           // Scan unchanged
           KmNextScanUnchanged();
 
-          // Print current findings
-          KmPrintScanResults();
+          // Get current operation entry
+          POPERATION_ENTRY operationEntry = KmGetCurrentScanOperation();
+
+          // Send scan count
+          status = KmSendSafe(Socket, &operationEntry->ScanCount, sizeof(UINT32), 0);
+          if (NT_SUCCESS(status))
+          {
+            // Iterate scan list
+            PLIST_ENTRY scanListEntry = operationEntry->ScanList.Flink;
+            while (scanListEntry != &operationEntry->ScanList)
+            {
+              // Get scan entry
+              PSCAN_ENTRY scanEntry = CONTAINING_RECORD(scanListEntry, SCAN_ENTRY, List);
+
+              // Send address
+              status = KmSendSafe(Socket, &scanEntry->Address, sizeof(UINT64), 0);
+
+              // Increment to the next record
+              scanListEntry = scanListEntry->Flink;
+            }
+          }
 
           break;
         }
@@ -236,8 +293,27 @@ KmScanRequest(
           // Undo previous scan
           KmUndoScanOperation();
 
-          // Print current findings
-          KmPrintScanResults();
+          // Get current operation entry
+          POPERATION_ENTRY operationEntry = KmGetCurrentScanOperation();
+
+          // Send scan count
+          status = KmSendSafe(Socket, &operationEntry->ScanCount, sizeof(UINT32), 0);
+          if (NT_SUCCESS(status))
+          {
+            // Iterate scan list
+            PLIST_ENTRY scanListEntry = operationEntry->ScanList.Flink;
+            while (scanListEntry != &operationEntry->ScanList)
+            {
+              // Get scan entry
+              PSCAN_ENTRY scanEntry = CONTAINING_RECORD(scanListEntry, SCAN_ENTRY, List);
+
+              // Send address
+              status = KmSendSafe(Socket, &scanEntry->Address, sizeof(UINT64), 0);
+
+              // Increment to the next record
+              scanListEntry = scanListEntry->Flink;
+            }
+          }
 
           break;
         }

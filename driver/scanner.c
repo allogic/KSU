@@ -2,27 +2,6 @@
 #include "pagetbl.h"
 
 ///////////////////////////////////////////////////////////////
-// Private Types
-///////////////////////////////////////////////////////////////
-
-typedef struct _SCAN_ENTRY
-{
-  LIST_ENTRY List;
-  PVOID Address;
-} SCAN_ENTRY, * PSCAN_ENTRY;
-
-typedef struct _OPERATION_ENTRY
-{
-  LIST_ENTRY List;
-  CHAR Name[32];
-  PVOID PageTableBase;
-  UINT32 NumberOfBytes;
-  PBYTE Bytes;
-  UINT32 ScanCount;
-  LIST_ENTRY ScanList;
-} OPERATION_ENTRY, * POPERATION_ENTRY;
-
-///////////////////////////////////////////////////////////////
 // Local Variables
 ///////////////////////////////////////////////////////////////
 
@@ -43,9 +22,6 @@ KmNewScanOperation();
 
 VOID
 KmCopyPrevOperationConfiguration();
-
-POPERATION_ENTRY
-KmGetCurrentScanOperation();
 
 POPERATION_ENTRY
 KmGetPreviousScanOperation();

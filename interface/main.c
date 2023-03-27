@@ -214,6 +214,29 @@ UmScanRequest(
 
               // Send buffer
               status = UmSendSafe(Socket, bytes, numberOfBytes, 0);
+              if (status == 0)
+              {
+                // Receive scan count
+                UINT32 scanCount = 0;
+                status = UmRecvSafe(Socket, &scanCount, sizeof(UINT32), 0);
+                if (status == 0)
+                {
+                  // Receive scan list
+                  UINT64 address = 0;
+                  UINT32 count = 0;
+                  while (count < scanCount)
+                  {
+                    // Receive address
+                    status = UmRecvSafe(Socket, &address, sizeof(UINT64), 0);
+                    if (status == 0)
+                    {
+                      LOG("%p\n", (PVOID)address);
+                    }
+
+                    count++;
+                  }
+                }
+              }
 
               // Free bytes
               free(bytes);
@@ -225,14 +248,77 @@ UmScanRequest(
       }
       case SCAN_TYPE_NEXT_CHANGED:
       {
+        // Receive scan count
+        UINT32 scanCount = 0;
+        status = UmRecvSafe(Socket, &scanCount, sizeof(UINT32), 0);
+        if (status == 0)
+        {
+          // Receive scan list
+          UINT64 address = 0;
+          UINT32 count = 0;
+          while (count < scanCount)
+          {
+            // Receive address
+            status = UmRecvSafe(Socket, &address, sizeof(UINT64), 0);
+            if (status == 0)
+            {
+              LOG("%p\n", (PVOID)address);
+            }
+
+            count++;
+          }
+        }
+
         break;
       }
       case SCAN_TYPE_NEXT_UNCHANGED:
       {
+        // Receive scan count
+        UINT32 scanCount = 0;
+        status = UmRecvSafe(Socket, &scanCount, sizeof(UINT32), 0);
+        if (status == 0)
+        {
+          // Receive scan list
+          UINT64 address = 0;
+          UINT32 count = 0;
+          while (count < scanCount)
+          {
+            // Receive address
+            status = UmRecvSafe(Socket, &address, sizeof(UINT64), 0);
+            if (status == 0)
+            {
+              LOG("%p\n", (PVOID)address);
+            }
+
+            count++;
+          }
+        }
+
         break;
       }
       case SCAN_TYPE_UNDO:
       {
+        // Receive scan count
+        UINT32 scanCount = 0;
+        status = UmRecvSafe(Socket, &scanCount, sizeof(UINT32), 0);
+        if (status == 0)
+        {
+          // Receive scan list
+          UINT64 address = 0;
+          UINT32 count = 0;
+          while (count < scanCount)
+          {
+            // Receive address
+            status = UmRecvSafe(Socket, &address, sizeof(UINT64), 0);
+            if (status == 0)
+            {
+              LOG("%p\n", (PVOID)address);
+            }
+
+            count++;
+          }
+        }
+
         break;
       }
     }
