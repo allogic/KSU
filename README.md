@@ -96,3 +96,9 @@ interface [Ip(Str)] [Port(Dec)] memory process [ProcessId(Dec)] write [Address(H
 ```
 interface [Ip(Str)] [Port(Dec)] shutdown
 ```
+
+# References
+
+ - https://nirsoft.net/
+ - https://geoffchappell.com/
+ - https://reactos.org/
