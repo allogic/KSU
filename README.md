@@ -61,7 +61,7 @@ interface [Ip(Str)] [Port(Dec)] info process [ProcessId(Dec)]
 
 **This API is still under construction!**
 
-Physically, the memory of each process may be dispersed across different areas of physical memory, or may have been moved `paged out` to secondary storage, typically to a hard-disk drive or solid-state drive. The scanners job is to iterate all physical pages of a processes memory and store all values that match a certain criteria.
+Physically, the memory of each process may be dispersed across different areas of physical memory, or may have been paged out to secondary storage, typically to a hard-disk drive or solid-state drive. The scanners job is to iterate all physical pages of a processes memory and store all values that match a certain criteria.
 
 ```
 interface [Ip(Str)] [Port(Dec)] scan reset
