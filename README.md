@@ -1,26 +1,31 @@
-# Kernel Script Utility
+# Overview
 
-An x64 Kernel-Mode rootkit written in C.
+The `Kernel Script Utility (KSU)` is an x64 Kernel-Mode rootkit written in C. It was designed to disect and intercept process memory flow.
 
-# Compiling the Project
+# Compile the Project
 
-Open the VisualStudio solution and build for `Debug` or `Release` bitness `x64`.
+Make sure the latest `WDK` is installed on your system in order to build the driver. Open the Visual Studio Solution and build for `Debug` or `Release` bitness `x64`.
 
-# Installing the Driver
+# Install the Driver
 
-There are a few ways to start this driver. Most games require `Driver Signature Enforcement` to be enabled but windows doesn't start drivers without certificates. The solution for this is to utilize tools like `KDU` which will turn off `Driver Signature Enforcement` temporarily. KDU is available here: https://github.com/hfiref0x/KDU.
+There are a few ways to start this driver. Most games require `Driver Signature Enforcement (DSE)` to be enabled but windows doesn't start drivers without certificates. The solution for this is to utilize tools like `KDU` which will bypass `DSE` at runtime or `EfiGuard` which will bypass `DSE` at boot time or runtime.
 
+ - https://github.com/hfiref0x/KDU
+ - https://github.com/Mattiwatti/EfiGuard
+
+An alternative way to disable `DSE` is holding `Shift` and reboot. Once windows is booting up again click `Troubleshoot/Advanced Options/Startup Settings/Restart/F7`. Almost every anti-cheat software doesn't start since `DSE` has been disabled permanently in this mode till the next reboot.
+
+After `DSE` has been disabled, the driver can be started.
+
+```ps1
+sc.exe create ksu type=kernel binPath="C:\driver.sys" # Create system service
+sc.exe start ksu                                      # Start the driver
+interface.exe 127.0.0.1 9095                          # Issue a variety of commands
 ```
-sc.exe create ksu type=kernel binPath="C:\driver.sys" // create system service (has to be done only once)
-kdu.exe -dse 0                                        // disable DSE
-sc.exe start/stop ksu                                 // start or stop driver
-kdu.exe -dse 6                                        // enable DSE (some AC's require DSE to be enabled)
-interface.exe 127.0.0.1 9095                          // issue a variety of commands
-```
-
-An alternative way is to disable `Driver Signature Enforcement` by holding `Shift` and reboot. Once windows is booting up again click `Troubleshoot/Advanced Options/Startup Settings/Restart`. Almost every anti-cheat software doesn't start since `Driver Signature Enforcement` has been disabled permanently till the next reboot.
 
 # Usage with Python
+
+The interface was designed to be used via scripting either locally or remotely. The following example demonstrates a simple use case to get the first 16 bytes of a running process on the target machine.
 
 ```python
 import subprocess
@@ -35,16 +40,18 @@ base = subprocess.run(cmd, capture_output=True, text=True).stdout.strip('\n')
 print(base) # 00007FF6AE350000
 
 # Get bytes at that address
-cmd = 'interface {} {} memory process {} read {} 16'.format(ip, port, base)
+cmd = 'interface {} {} memory process {} read {} 16'.format(ip, port, pid, base)
 bytes = subprocess.run(cmd, capture_output=True, text=True).stdout.strip('\n')
 print(bytes) # 4D 5A 90 00 03 00 00 00 04 00 00 00 FF FF 00
 ```
 
-# API
+# Features
 
 ## Information
 
-This API is still under construction.
+**This API is still under construction!**
+
+This endpoint was designed to get extended information of kernel or process images.
 
 ```
 interface [Ip(Str)] [Port(Dec)] info process [ProcessId(Dec)]
@@ -52,7 +59,9 @@ interface [Ip(Str)] [Port(Dec)] info process [ProcessId(Dec)]
 
 ## Memory Scanning
 
-This API is still under construction.
+**This API is still under construction!**
+
+Physically, the memory of each process may be dispersed across different areas of physical memory, or may have been moved `paged out` to secondary storage, typically to a hard-disk drive or solid-state drive. The scanners job is to iterate all physical pages of a processes memory and store all values that match a certain criteria.
 
 ```
 interface [Ip(Str)] [Port(Dec)] scan reset
@@ -64,7 +73,9 @@ interface [Ip(Str)] [Port(Dec)] scan undo
 
 ## Debug Breakpoints
 
-This API is still under construction.
+**This API is still under construction!**
+
+Hardware breakpoints are implemented using the DRx architectural breakpoint registers described in the Intel SDM.
 
 ```
 interface [Ip(Str)] [Port(Dec)] break set [Address(Hex)]
