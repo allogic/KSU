@@ -20,29 +20,6 @@ After `DSE` has been disabled, the driver can be started.
 ```ps1
 sc.exe create ksu type=kernel binPath="C:\driver.sys" # Create system service
 sc.exe start ksu                                      # Start the driver
-interface.exe 127.0.0.1 9095                          # Issue a variety of commands
-```
-
-# Usage with Python
-
-The interface was designed to be used via scripting either locally or remotely. The following example demonstrates a simple use case to get the first 16 bytes of a running process on the target machine.
-
-```python
-import subprocess
-
-ip = '127.0.0.1'
-port = 9095
-pid = 1234
-
-# Get base address of process
-cmd = 'interface {} {} info process {}'.format(ip, port, pid)
-base = subprocess.run(cmd, capture_output=True, text=True).stdout.strip('\n')
-print(base) # 00007FF6AE350000
-
-# Get bytes at that address
-cmd = 'interface {} {} memory process {} read {} 16'.format(ip, port, pid, base)
-bytes = subprocess.run(cmd, capture_output=True, text=True).stdout.strip('\n')
-print(bytes) # 4D 5A 90 00 03 00 00 00 04 00 00 00 FF FF 00
 ```
 
 # Features
